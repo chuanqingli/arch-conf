@@ -19,9 +19,15 @@ mv /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 mv aaa.txt /etc/pacman.d/mirrorlist
 chmod +r /etc/pacman.d/mirrorlist
 
+
+wget https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist -O bbb.txt
+sed -i 's/#Server/Server/g' bbb.txt
+mv bbb.txt /etc/pacman.d/archlinuxcn-mirrorlist
+chmod +r /etc/pacman.d/archlinuxcn-mirrorlist
+
 echo "[archlinuxcn]">>/etc/pacman.conf
 echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
-echo "Server = http://mirrors.tuna.tsinghua.edu.cn/archlinuxcn/\$arch">>/etc/pacman.conf
+echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
 
 color red "cfdisk and format!"
 fdisk -l
@@ -42,7 +48,7 @@ mkdir /mnt/home
 mount /dev/sda3 /mnt/home
 
 color red "pacstrap!"
-pacstrap -i /mnt base base-devel gvim fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub lxdm  google-chrome wps-office
+pacstrap -i /mnt base base-devel gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub  google-chrome wps-office wqy-zenhei
 
 genfstab -U /mnt > /mnt/etc/fstab
 
@@ -69,7 +75,7 @@ echo "export XMODIFIERS=@im=fcitx">>/etc/locale.conf
 grub-install --recheck /dev/sda
 grub-mkconfig -o /boot/grub/grub.cfg
 systemctl enable dhcpcd.service
-systemctl enable lxdm.service
+#systemctl enable xdm.service
 
 exit
 reboot
