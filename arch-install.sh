@@ -84,6 +84,7 @@ pacstrap -i /mnt base base-devel gvim wqy-microhei fcitx-im fcitx-configtool xor
 genfstab -U /mnt > /mnt/etc/fstab
 
 color red "cp arch-install.sh!"
+cp arch-install.sh /mnt
 cp arch-install.sh /mnt/home
 
 color red "arch-chroot!"
