@@ -17,22 +17,21 @@ echo "$? ${output[0]} ${output[1]}" && return
 
 writemirrorfile(){
 wget $1 -O $2
-
-sed -i 's/#Server/Server/g' $2
+#myfunc里处理，这里不再需要了
+#sed -i 's/#Server/Server/g' $2
 awk '
 function checkurl(url) {
-#cmd = "curl -s -m 5 -w \"%{http_code} %{time_total}\" " url " -o /dev/null";
-cmd = "curl -s -m 5 " url " -o /dev/null";
-return system(cmd);
+    #cmd = "curl -s -m 5 -w \"%{http_code} %{time_total}\" " url " -o /dev/null";
+    cmd = "curl -s -m 5 " url " -o /dev/null";
+    return system(cmd);
 }
 
-function myfunc(url){
-if(sub(/^Server/, url)){
-    resp = checkurl(substr(url,10));
-    if(resp==0)return url;
-     return "";
- }
-return url;
+function myfunc(line){
+    resp0=match(line,/^#(Server[ \t]*=[ \t]*(http.*))$/,arr);
+    if(resp0<=0)return line;
+    resp1 = checkurl(arr[2]);
+    if(resp1==0)return arr[1];
+    return "";
 }
 {print myfunc($0);}' $2>$3
 
@@ -51,7 +50,7 @@ echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
 }
 
 updtest(){
-color red "wget mirrorlist and update!"
+color red "wget mirrorlist and update test 1234567890!"
 
 writemirrorfile https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt aa0.txt aa1.txt
 writemirrorfile https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt bb0.txt bb1.txt
@@ -130,9 +129,16 @@ domain(){
        after)
             afterchroot
         ;;
-
+       en_us)
+            LANG=en_US.UTF-8
+        ;;
+       zh_cn)
+            LANG=zh_CN.UTF-8
+        ;;
+    *)
+        echo "before after en_us zh_cn"
+        ;;
     esac
-
 }
 
 domain $1
