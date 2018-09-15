@@ -82,6 +82,10 @@ color red "pacstrap!"
 pacstrap -i /mnt base base-devel gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub  google-chrome wps-office wqy-zenhei
 
 genfstab -U /mnt > /mnt/etc/fstab
+
+color red "cp arch-install.sh!"
+cp arch-install.sh /mnt/home
+
 color red "arch-chroot!"
 arch-chroot /mnt
 }
