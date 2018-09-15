@@ -21,7 +21,7 @@ chmod +r /etc/pacman.d/mirrorlist
 
 echo "[archlinuxcn]">>/etc/pacman.conf
 echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
-echo "Server = http://mirrors.tuna.tsinghua.edu.cn/archlinuxcn/$arch">>/etc/pacman.conf
+echo "Server = http://mirrors.tuna.tsinghua.edu.cn/archlinuxcn/\$arch">>/etc/pacman.conf
 
 color red "cfdisk and format!"
 fdisk -l
