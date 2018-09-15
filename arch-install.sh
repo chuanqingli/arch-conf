@@ -40,16 +40,14 @@ mount /dev/sda3 /mnt/home
 
 color red "pacstrap!"
 pacstrap -i /mnt base base-devel gvim
-genfstab -U -p /mnt > /mnt/etc/fstab
+genfstab -U /mnt > /mnt/etc/fstab
 
 color red "arch-chroot!"
 arch-chroot /mnt
 
-
-
 color red "zone and time update!"
 ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-hwclock --systohc --utc
+hwclock --systohc
 
 color red "chuanqing!"
 echo chuanqing>/etc/hostname
