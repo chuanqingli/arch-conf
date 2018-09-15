@@ -10,25 +10,56 @@ color(){
         ;;
     esac
 }
+checkurl() {
+	IFS=' ' output=( $(curl -s -m 5 -w "%{time_total} %{http_code}" "$1" -o/dev/null) )
+echo "$? ${output[0]} ${output[1]}" && return
+}
 
+writemirrorfile(){
+wget $1 -O $2
+
+sed -i 's/#Server/Server/g' $2
+awk '
+function checkurl(url) {
+#cmd = "curl -s -m 5 -w \"%{http_code} %{time_total}\" " url " -o /dev/null";
+cmd = "curl -s -m 5 " url " -o /dev/null";
+return system(cmd);
+}
+
+function myfunc(url){
+if(sub(/^Server/, url)){
+    resp = checkurl(substr(url,10));
+    if(resp==0)return url;
+     return "";
+ }
+return url;
+}
+{print myfunc($0);}' $2>$3
+
+mv $3 $4
+chmod +r $4
+}
+
+updmirror(){
 color red "wget mirrorlist and update!"
 
-wget https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on -O aaa.txt
-sed -i 's/#Server/Server/g' aaa.txt
-mv /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
-mv aaa.txt /etc/pacman.d/mirrorlist
-chmod +r /etc/pacman.d/mirrorlist
-
-
-wget https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist -O bbb.txt
-sed -i 's/#Server/Server/g' bbb.txt
-mv bbb.txt /etc/pacman.d/archlinuxcn-mirrorlist
-chmod +r /etc/pacman.d/archlinuxcn-mirrorlist
-
+writemirrorfile https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt aa0.txt /etc/pacman.d/mirrorlist
+writemirrorfile https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt bb0.txt /etc/pacman.d/archlinuxcn-mirrorlist
 echo "[archlinuxcn]">>/etc/pacman.conf
 echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
 echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
+}
 
+updtest(){
+color red "wget mirrorlist and update!"
+
+writemirrorfile https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt aa0.txt aa1.txt
+writemirrorfile https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt bb0.txt bb1.txt
+}
+
+
+
+beforechroot(){
 color red "cfdisk and format!"
 fdisk -l
 cfdisk
@@ -51,10 +82,12 @@ color red "pacstrap!"
 pacstrap -i /mnt base base-devel gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub  google-chrome wps-office wqy-zenhei
 
 genfstab -U /mnt > /mnt/etc/fstab
-
 color red "arch-chroot!"
 arch-chroot /mnt
+}
 
+
+afterchroot(){
 color red "zone and time update!"
 ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 hwclock --systohc
@@ -79,3 +112,23 @@ systemctl enable dhcpcd.service
 
 exit
 reboot
+}
+
+domain(){
+   case $1 in
+        test)
+            updtest
+        ;;
+        before)
+            updmirror
+            beforechroot
+        ;;
+       after)
+            afterchroot
+        ;;
+
+    esac
+
+}
+
+domain $1
