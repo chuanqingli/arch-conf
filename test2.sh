@@ -8,23 +8,65 @@ mkfs-and-mount(){
 
 COMMENT
 
-sddata=`((a1 ext4 /)
-(a3 ext4 /home)
-(a2 swap 0))`
+sddata=(
+"/dev/sda1       ext4 /   "
+"  "
+"werewr"
+"/dev/sda8 ext4      /home"
+"/dev/sda3 ext9      /ttt"
+""
+"/dev/sda7      swap 0"
+    
+    "你好"
+    "海南"
+    "大学"
+)
 
 
-    # select mirror in "`tail -n 1 /etc/pacman.d/mirrorlist`" "`tail -n 2 /etc/pacman.d/mirrorlist | head -n 1`" "`tail -n 3 /etc/pacman.d/mirrorlist | head -n 1`";do
-    #     echo $mirror > /etc/pacman.d/mirrorlist
-    # break
-    # done
 
+devdata=`df -hT|grep ^/dev/sd|awk '{print $1}'`
 
+#devdata=(`echo -e ${devdata[@]}`)
+awk -v sddata=\$${devdata} 'BEGIN{print sddata}'
 
-devdata=(`df -hT|grep ^/dev/sd|awk '{print $1}'`)
+echo ${sddata[*]} ";" ${#sddata[*]} 
+# for day in ${sddata[@]}  #或${days[@]}
+# do
+#         echo $day ";"
+# done
 
+#sddata2
+for i in ${!sddata[@]}
+do
+
+    ppp=(${sddata[$i]})
+
+    if [[ ${#ppp[@]} -ne 3 ]]; then
+        continue;
+    fi
+
+    # if [[ ${ppp[0]} != ^/dev/sd*$ ]]; then
+    #     continue;
+    # fi
+
+    checkok=0
+    for x in ${devdata}
+    do
+        if [[ $x == ${ppp[0]} ]]; then
+            checkok=1
+            break;
+        fi
+        
+    done
+
+    if [[ ${checkok} == 0 ]]; then
+        continue;
+    fi
+        echo ${sddata[$i]} "==>" ${ppp[@]} ":" ${#ppp[@]} ":" ${ppp[0]}
+done
 #sddata=`echo ${sddata}|sed -n "s/\([ \t\n]*;[ \t\n]*\)\+/\n/gp"|sed -n "v#^\/dev\/sd#d"`
 
-echo ${devdata[*]} ";" ${#devdata[*]} 
+#echo ${devdata[*]} ";" ${#devdata[*]} 
 return
 
 echo ${sddata}|sed -n "s/\([ \t\n]*;[ \t\n]*\)\+/\n/gp"|awk '
