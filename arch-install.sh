@@ -115,6 +115,26 @@ extend-echo "5;7;1;37;45" "wget mirrorlist and update test 1234567890!"
 #write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt bb0.txt bb1.txt
 }
 
+mkfs-and-mount(){
+<<'COMMENT'
+按“分区 格式化类别 挂载点”格式填写磁盘操作，格式化类别、挂载点不做操作的填0；
+格式化类别可选ext3、ext4、swap、0；
+挂载点如/、/home、/var、/tmp，不挂载填0；
+
+
+COMMENT
+
+sddata='
+
+
+/dev/sda1       ext4 /;
+/dev/sda3 ext4      /home;
+/dev/sda2      swap 0'
+
+echo ${sddata}|sed -n "s/[ \t\n]*;[ \t\n]*/\n/gp"|awk '{printf "var0=%s==>var1=%s;var2=%s;var3=%s;\n",$0,$1,$2,$3 }'
+
+}
+
 before-chroot(){
 extend-echo red "cfdisk and format!"
 fdisk -l
