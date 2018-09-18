@@ -88,31 +88,22 @@ function myfunc(line){
 }
 {print myfunc($0);}' $2>$3
 
-mv $3 $4
-chmod +r $4
+chmod +r $3
 }
 
 update-mirror-file(){
 extend-echo red "wget mirrorlist and update!"
 
-write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt aa0.txt /etc/pacman.d/mirrorlist
-write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt bb0.txt /etc/pacman.d/archlinuxcn-mirrorlist
+write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt /etc/pacman.d/mirrorlist
+write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt /etc/pacman.d/archlinuxcn-mirrorlist
 echo "[archlinuxcn]">>/etc/pacman.conf
 echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
 echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
 }
 
 updtest(){
-extend-echo info "wget mirrorlist and update test 1234567890!"
-extend-echo warn "wget mirrorlist and \"update\" test 1234567890!"
-extend-echo error "wget mirrorlist and update test 1234567890!"
-extend-echo test "wget mirrorlist and update test 1234567890!"
-extend-echo yellow "wget mirrorlist and update test 1234567890!"
-extend-echo Byellow "wget mirrorlist and update test 1234567890!"
-extend-echo "5;7;1;37;45" "wget mirrorlist and update test 1234567890!"
-
-#write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt aa0.txt aa1.txt
-#write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt bb0.txt bb1.txt
+write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt aa1.txt
+write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt bb1.txt
 }
 
 mkfs-and-mount(){
@@ -213,9 +204,6 @@ grub-install --recheck /dev/sda
 grub-mkconfig -o /boot/grub/grub.cfg
 systemctl enable dhcpcd.service
 #systemctl enable xdm.service
-
-exit
-reboot
 }
 
 domain(){

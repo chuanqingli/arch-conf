@@ -21,7 +21,8 @@ sddata=(
     "海南"
     "大学"
 )
-
+ccc=()
+nindex=0
 devdata=`df -hT|grep ^/dev/sd|awk '{print $1}'`
 for i in ${!sddata[@]};do
 
@@ -43,21 +44,25 @@ for i in ${!sddata[@]};do
         continue;
     fi
 
-    if [[ ${ppp[1]} == swap ]];then
-        mkswap ${ppp[0]}
-        swapon ${ppp[0]}
-    elif [[ ${ppp[1]} != 0 ]];then
-        mkfs -t ${ppp[0]}
-    fi
+    ccc[nindex++]=${ppp[@]}
 
-    if [[ ${ppp[2]} != 0 ]];then
-        mpath=/mnt${ppp[2]}
-        if [[ ${mpath} != "/" ]];then
-            mkdir -p ${mpath}
-        fi
-        mount ${ppp[0]} ${mpath}
-    fi
+    # if [[ ${ppp[1]} == swap ]];then
+    #     mkswap ${ppp[0]}
+    #     swapon ${ppp[0]}
+    # elif [[ ${ppp[1]} != 0 ]];then
+    #     mkfs -t ${ppp[0]}
+    # fi
+
+    # if [[ ${ppp[2]} != 0 ]];then
+    #     mpath=/mnt${ppp[2]}
+    #     if [[ ${mpath} != "/" ]];then
+    #         mkdir -p ${mpath}
+    #     fi
+    #     mount ${ppp[0]} ${mpath}
+    # fi
 done
+
+echo -e ${ccc[@]}|awk '{print $0 ";"}'
 }
 
 mkfs-and-mount
