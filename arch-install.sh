@@ -210,6 +210,9 @@ domain(){
    case $1 in
         test)
             updtest
+            ;;
+        mirror)
+            update-mirror-file
         ;;
         before)
             update-mirror-file
