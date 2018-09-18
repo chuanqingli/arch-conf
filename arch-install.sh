@@ -117,42 +117,67 @@ extend-echo "5;7;1;37;45" "wget mirrorlist and update test 1234567890!"
 
 mkfs-and-mount(){
 <<'COMMENT'
-按“分区 格式化类别 挂载点”格式填写磁盘操作，格式化类别、挂载点不做操作的填0；
+按“分区 格式化类别 挂载点;”格式填写磁盘操作，格式化类别、挂载点不做操作的填0；
 格式化类别可选ext3、ext4、swap、0；
 挂载点如/、/home、/var、/tmp，不挂载填0；
 
 
 COMMENT
 
-sddata='
+sddata=(
+"/dev/sda1 ext4 /"
+"/dev/sda3 ext4 /home"
+"/dev/sda2 swap 0"
+)
 
+devdata=`fdisk -l|grep ^/dev/sd|awk '{print $1}'`
+for i in ${!sddata[@]};do
 
-/dev/sda1       ext4 /;
-/dev/sda3 ext4      /home;
-/dev/sda2      swap 0'
+    ppp=(${sddata[$i]})
 
-echo ${sddata}|sed -n "s/[ \t\n]*;[ \t\n]*/\n/gp"|awk '{printf "var0=%s==>var1=%s;var2=%s;var3=%s;\n",$0,$1,$2,$3 }'
+    if [[ ${#ppp[@]} -ne 3 ]];then
+        continue;
+    fi
 
+    checkok=0
+    for x in ${devdata};do
+        if [[ $x == ${ppp[0]} ]];then
+            checkok=1
+            break;
+        fi
+    done
+
+    if [[ ${checkok} == 0 ]];then
+        continue;
+    fi
+
+    if [[ ${ppp[1]} == swap ]];then
+        mkswap ${ppp[0]}
+        swapon ${ppp[0]}
+        continue;
+    elif [[ ${ppp[1]} != 0 ]];then
+        mkfs -t ${ppp[1]} ${ppp[0]}
+    fi
+
+    if [[ ${ppp[2]} != 0 ]];then
+        mpath=/mnt${ppp[2]}
+        if [[ ${mpath} != "/" ]];then
+            mkdir -p ${mpath}
+        fi
+        mount ${ppp[0]} ${mpath}
+    fi
+done
 }
 
 before-chroot(){
-extend-echo red "cfdisk and format!"
+extend-echo red "cfdisk!"
 fdisk -l
 cfdisk
 #fdisk /dev/sda
 
-mkfs.ext4 /dev/sda1
-mkfs.ext4 /dev/sda3
 
-mkswap /dev/sda2
-swapon /dev/sda2
-
-extend-echo red "mount!"
-
-mount /dev/sda1 /mnt
-
-mkdir /mnt/home
-mount /dev/sda3 /mnt/home
+extend-echo red "mkfs and mount!"
+mkfs-and-mount
 
 extend-echo red "pacstrap!"
 pacstrap -i /mnt base base-devel gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub  google-chrome wps-office wqy-zenhei
