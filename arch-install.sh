@@ -96,8 +96,15 @@ extend-echo red "wget mirrorlist and update!"
 
 write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt /etc/pacman.d/mirrorlist
 write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt /etc/pacman.d/archlinuxcn-mirrorlist
+
+sed -i 's/#\(XferCommand = \/usr\/bin\/wget -c\)/\1/g' /etc/pacman.conf
+
+checkok=`grep archlinuxcn /etc/pacman.conf`
+if [[ ${checkok} =~ "archlinuxcn" ]];then
+    return
+fi
 echo "[archlinuxcn]">>/etc/pacman.conf
-echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
+#echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
 echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
 }
 
@@ -171,7 +178,7 @@ extend-echo red "mkfs and mount!"
 mkfs-and-mount
 
 extend-echo red "pacstrap!"
-pacstrap -i /mnt base base-devel gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub  google-chrome wps-office wqy-zenhei
+pacstrap -i /mnt base base-devel gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub  google-chrome wps-office wqy-zenhei lastpass ttf-wps-fonts
 
 genfstab -U /mnt > /mnt/etc/fstab
 
