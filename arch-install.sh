@@ -97,7 +97,7 @@ extend-echo red "wget mirrorlist and update!"
 write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt /etc/pacman.d/mirrorlist
 write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt /etc/pacman.d/archlinuxcn-mirrorlist
 
-sed -i 's/#\(XferCommand = \/usr\/bin\/wget -c\)/\1/g' /etc/pacman.conf
+sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
 
 checkok=`grep archlinuxcn /etc/pacman.conf`
 if [[ ${checkok} =~ "archlinuxcn" ]];then
