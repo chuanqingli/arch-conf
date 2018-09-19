@@ -212,7 +212,7 @@ arch-chroot /mnt
 after-chroot(){
 
 extend-echo red "pacman soft!"
-pacman -S gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub google-chrome wps-office wqy-zenhei ttf-wps-fonts
+pacman -S gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub google-chrome wps-office wqy-zenhei ttf-wps-fonts xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
     
 extend-echo red "zone and time update!"
 ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
@@ -233,7 +233,9 @@ echo "export XMODIFIERS=@im=fcitx">>/etc/locale.conf
 
 grub-install --recheck /dev/sda
 grub-mkconfig -o /boot/grub/grub.cfg
-systemctl enable dhcpcd.service
+systemctl enable dhcpcd
+systemctl enable lightdm
+systemctl enable NetworkManager
 #systemctl enable xdm.service
 }
 
