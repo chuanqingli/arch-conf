@@ -1,4 +1,57 @@
 #!/bin/bash
+
+<<'COMMENT'
+知识点：
+1、archlinux安装脚本；
+2、echo的增强输出；
+3、curl、wget下载文件，输出格式化；
+4、mktemp指定临时文件；
+5、字符串分组及匹配；
+6、数组和文本的两种遍历（index、value）；
+7、sed格式化或清除指定内容；
+8、grep查找内容；
+9、变量的计算；
+COMMENT
+
+echo-color-value(){
+    if [[ $1 =~ ^(B)?([a-z]+)$ ]];then
+        t1=30
+        if [[ ${BASH_REMATCH[1]} == 'B' ]];then
+            t1=40
+        fi
+
+        ccc=(black red green yellow blue purple indigo white)
+        for i in ${!ccc[@]};do
+            # echo ${ccc[i]} ";" ${i}
+            if [[ ${BASH_REMATCH[2]} == ${ccc[i]} ]];then
+                echo $(($t1+i)) && return 0
+            fi
+        done
+        return 1
+    fi
+    return 2
+}
+
+echo-value(){
+    resp=`echo-color-value $1`
+    if [[ $? == 0 ]];then
+        echo ${resp} && return 0
+    fi
+
+    resp=0
+    if [[ $1 == info ]];then
+        resp=35
+    elif [[ $1 == warn ]];then
+        resp="31;5;1"
+    elif [[ $1 == error ]];then
+        resp="1;5;7;30;41"
+    elif [[ $1 =~ ^[0-9\;]+$ ]];then
+        resp=$1
+    fi
+
+    echo ${resp} && return 0
+}
+
 extend-echo(){
 <<'COMMENT'
 0 关闭所有属性 
@@ -19,49 +72,11 @@ extend-echo(){
 37:白  white
 COMMENT
 
-eval $(echo $1|awk '
-
-BEGIN{
-coval["black"]=0;
-coval["red"]=1;
-coval["green"]=2;
-coval["yellow"]=3;
-coval["blue"]=4;
-coval["purple"]=5;
-coval["indigo"]=6;   
-coval["white"]=7;
-}
-function colorvalue(co){
-    if(co in coval)return (30+coval[co]);
-    resp0=match(co,/^(B)?([a-z]+)$/,arr);
-    if(resp0<=0)return 0;
-    if(arr[2] in coval){
-        return ((arr[1]=="")?30:40)+coval[arr[2]];
-    }
-
-    return 0;
+    var1=`echo-value $1`
+    echo -e "\033[${var1}m$2\033[0m"
+    # echo -e "\033[${var1}m$1=(${var1})=>$2\033[0m"
 }
 
-function echovalue(line){
-    resp0 = colorvalue(line);
-    if(resp0>0)return ""+resp0;
-
-    if("info"==line)return "35";
-    if("warn"==line)return "31;5;1";
-    if("error"==line)return "1;5;7;30;41";
-    if(sub(/^[0-9;]+$/,line))return line;
-    return "0";
-}
-
-{
-printf("var1=\"%s\"",echovalue($0));
-}
-')
-
-#echo "==${var1}==$1======="
-
-echo -e "\033[${var1}m$2\033[0m"
-}
 
 checkurl() {
 	IFS=' ' output=( $(curl -s -m 5 -w "%{time_total} %{http_code}" "$1" -o/dev/null) )
@@ -69,48 +84,50 @@ echo "$? ${output[0]} ${output[1]}" && return
 }
 
 write-mirror-file(){
-wget $1 -O $2
-#myfunc里处理，这里不再需要了
-#sed -i 's/#Server/Server/g' $2
-awk '
-function checkurl(url) {
-    #cmd = "curl -s -m 5 -w \"%{http_code} %{time_total}\" " url " -o /dev/null";
-    cmd = "curl -s -m 5 " url " -o /dev/null";
-    return system(cmd);
+    tmpf1=$(mktemp)
+    tmpf2=$(mktemp)
+    echo ${tmpf1} ";" ${tmpf2}
+    wget $1 -O ${tmpf1}
+    echo >$2
+    echo >${tmpf2}
+    cat ${tmpf1}|while read line;do
+        showline=${line}
+        if [[ ${line} =~ ^[#]*(Server[ \t]*=[ \t]*(http.*))$ ]];then
+            resp=($(checkurl ${BASH_REMATCH[2]}))
+            echo ${BASH_REMATCH[2]} "==>" ${resp[@]}
+            if [[ ${resp[0]} == 0 ]];then
+                echo ${resp[1]} " " ${BASH_REMATCH[2]}>>${tmpf2}
+            fi
+            showline="#"${BASH_REMATCH[1]}
+        fi
+        echo ${showline}>>$2
+    done
+
+    cat ${tmpf2}|sort -n|sed "s@^[0-9\. \t]\+@Server = @g">>$2
+    chmod +r $2
 }
 
-function myfunc(line){
-    resp0=match(line,/^#(Server[ \t]*=[ \t]*(http.*))$/,arr);
-    if(resp0<=0)return line;
-    resp1 = checkurl(arr[2]);
-    if(resp1==0)return arr[1];
-    return "";
-}
-{print myfunc($0);}' $2>$3
-
-chmod +r $3
-}
 
 update-mirror-file(){
-extend-echo red "wget mirrorlist and update!"
+    extend-echo red "wget mirrorlist and update!"
 
-write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt /etc/pacman.d/mirrorlist
-write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt /etc/pacman.d/archlinuxcn-mirrorlist
+    write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on /etc/pacman.d/mirrorlist
+    write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist /etc/pacman.d/archlinuxcn-mirrorlist
+    
+    #sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
 
-#sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
-
-checkok=`grep archlinuxcn /etc/pacman.conf`
-if [[ ${checkok} =~ "archlinuxcn" ]];then
-    return
-fi
-echo "[archlinuxcn]">>/etc/pacman.conf
-#echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
-echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
+    checkok=`grep archlinuxcn /etc/pacman.conf`
+    if [[ ${checkok} =~ "archlinuxcn" ]];then
+        return
+    fi
+    echo "[archlinuxcn]">>/etc/pacman.conf
+    #echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
+    echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
 }
 
 updtest(){
-write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt aa1.txt
-write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt bb1.txt
+write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt
+write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt
 }
 
 mkfs-and-mount(){
@@ -178,7 +195,7 @@ extend-echo red "mkfs and mount!"
 mkfs-and-mount
 
 extend-echo red "pacstrap!"
-pacstrap -i /mnt base base-devel gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub  google-chrome wps-office wqy-zenhei lastpass ttf-wps-fonts
+pacstrap -i /mnt base base-devel gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub google-chrome wps-office wqy-zenhei ttf-wps-fonts
 
 genfstab -U /mnt > /mnt/etc/fstab
 

@@ -1,68 +1,126 @@
 #!/bin/bash
-mkfs-and-mount(){
-<<'COMMENT'
-按“分区 格式化类别 挂载点;”格式填写磁盘操作，格式化类别、挂载点不做操作的填0；
-格式化类别可选ext3、ext4、swap、0；
-挂载点如/、/home、/var、/tmp，不挂载填0；
 
-
-COMMENT
-
-sddata=(
-"/dev/sda1       ext4 /   "
-"  "
-"werewr"
-"/dev/sda8 ext4      /home"
-"/dev/sda3 ext9      /ttt"
-""
-"/dev/sda7      swap 0"
-    
-    "你好"
-    "海南"
-    "大学"
-)
-ccc=()
-nindex=0
-devdata=`df -hT|grep ^/dev/sd|awk '{print $1}'`
-for i in ${!sddata[@]};do
-
-    ppp=(${sddata[$i]})
-
-    if [[ ${#ppp[@]} -ne 3 ]];then
-        continue;
-    fi
-
-    checkok=0
-    for x in ${devdata};do
-        if [[ $x == ${ppp[0]} ]];then
-            checkok=1
-            break;
+echo-color-value(){
+    if [[ $1 =~ ^(B)?([a-z]+)$ ]];then
+        t1=30
+        if [[ ${BASH_REMATCH[1]} == 'B' ]];then
+            t1=40
         fi
-    done
 
-    if [[ ${checkok} == 0 ]];then
-        continue;
+        ccc=(black red green yellow blue purple indigo white)
+        for i in ${!ccc[@]};do
+            # echo ${ccc[i]} ";" ${i}
+            if [[ ${BASH_REMATCH[2]} == ${ccc[i]} ]];then
+                echo $(($t1+i)) && return 0
+            fi
+        done
+        return 1
     fi
-
-    ccc[nindex++]=${ppp[@]}
-
-    # if [[ ${ppp[1]} == swap ]];then
-    #     mkswap ${ppp[0]}
-    #     swapon ${ppp[0]}
-    # elif [[ ${ppp[1]} != 0 ]];then
-    #     mkfs -t ${ppp[0]}
-    # fi
-
-    # if [[ ${ppp[2]} != 0 ]];then
-    #     mpath=/mnt${ppp[2]}
-    #     if [[ ${mpath} != "/" ]];then
-    #         mkdir -p ${mpath}
-    #     fi
-    #     mount ${ppp[0]} ${mpath}
-    # fi
-done
-
-echo -e ${ccc[@]}|awk '{print $0 ";"}'
+    return 2
 }
 
-mkfs-and-mount
+echo-value(){
+    resp=`echo-color-value $1`
+    if [[ $? == 0 ]];then
+        echo ${resp} && return 0
+    fi
+
+    resp=0
+    if [[ $1 == info ]];then
+        resp=35
+    elif [[ $1 == warn ]];then
+        resp="31;5;1"
+    elif [[ $1 == error ]];then
+        resp="1;5;7;30;41"
+    elif [[ $1 =~ ^[0-9\;]+$ ]];then
+        resp=$1
+    fi
+
+    echo ${resp} && return 0
+}
+
+extend-echo(){
+<<'COMMENT'
+0 关闭所有属性 
+1 设置高亮度 
+4 下划线 
+5 闪烁 
+7 反显 
+8 消隐 
+30~37 前景色 
+40~47 背景色 
+30:黑  black
+31:红  red
+32:绿  green
+33:黄  yellow
+34:蓝  blue
+35:紫  purple
+36:青 indigo   
+37:白  white
+COMMENT
+    var1=`echo-value $1`
+    echo -e "\033[${var1}m$2\033[0m"
+    # echo -e "\033[${var1}m$1=(${var1})=>$2\033[0m"
+}
+extend-echo-awk(){
+
+eval $(echo $1|awk '
+
+BEGIN{
+coval["black"]=0;
+coval["red"]=1;
+coval["green"]=2;
+coval["yellow"]=3;
+coval["blue"]=4;
+coval["purple"]=5;
+coval["indigo"]=6;   
+coval["white"]=7;
+}
+function colorvalue(co){
+    if(co in coval)return (30+coval[co]);
+    resp0=match(co,/^(B)?([a-z]+)$/,arr);
+    if(resp0<=0)return 0;
+    if(arr[2] in coval){
+        return ((arr[1]=="")?30:40)+coval[arr[2]];
+    }
+
+    return 0;
+}
+
+function echovalue(line){
+    resp0 = colorvalue(line);
+    if(resp0>0)return ""+resp0;
+
+    if("info"==line)return "35";
+    if("warn"==line)return "31;5;1";
+    if("error"==line)return "1;5;7;30;41";
+    if(sub(/^[0-9;]+$/,line))return line;
+    return "0";
+}
+
+{
+printf("var1=\"%s\"",echovalue($0));
+}
+')
+
+#echo "==${var1}==$1======="
+
+echo -e "\033[${var1}m$2\033[0m"
+}
+
+dotest(){
+extend-echo red "wget mirrorlist and update!"
+extend-echo Bred "wget mirrorlist and update!"
+extend-echo green "wget mirrorlist and update!"
+extend-echo Byellow "wget mirrorlist and update!"
+extend-echo info "wget mirrorlist and update!"
+extend-echo warn "wget mirrorlist and update!"
+extend-echo error "wget mirrorlist and update!"
+extend-echo "1;7;5;31;43" "wget mirrorlist and update!"
+
+    
+}
+
+dotest
+#echo $(echo-color-value Byellow)
+
