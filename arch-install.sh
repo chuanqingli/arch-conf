@@ -123,6 +123,9 @@ update-mirror-file(){
     echo "[archlinuxcn]">>/etc/pacman.conf
     #echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
     echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
+
+    #更新软件包列表
+    pacman -Syy
 }
 
 updtest(){
@@ -194,8 +197,8 @@ cfdisk
 extend-echo red "mkfs and mount!"
 mkfs-and-mount
 
-extend-echo red "pacstrap!"
-pacstrap -i /mnt base base-devel gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub google-chrome wps-office wqy-zenhei ttf-wps-fonts
+extend-echo red "pacstrap base system!"
+pacstrap -i /mnt base base-devel
 
 genfstab -U /mnt > /mnt/etc/fstab
 
@@ -207,9 +210,13 @@ arch-chroot /mnt
 }
 
 after-chroot(){
+
+extend-echo red "pacman soft!"
+pacman -S gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit xfce4 grub google-chrome wps-office wqy-zenhei ttf-wps-fonts
+    
 extend-echo red "zone and time update!"
 ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-hwclock --systohc
+hwclock --systohc --localtime
 
 extend-echo red "chuanqing!"
 echo chuanqing>/etc/hostname
