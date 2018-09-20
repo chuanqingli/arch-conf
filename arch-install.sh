@@ -205,6 +205,7 @@ before-chroot(){
 
     extend-echo red "cp install.sh!"
     cp arch-install.sh /mnt
+    cp arch-install.sh /home
 
     extend-echo red "arch-chroot!"
     arch-chroot /mnt
