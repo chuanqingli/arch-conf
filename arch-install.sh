@@ -86,7 +86,7 @@ echo "$? ${output[0]} ${output[1]}" && return
 write-mirror-file(){
     tmpf1=$(mktemp)
     tmpf2=$(mktemp)
-    echo ${tmpf1} ";" ${tmpf2}
+    echo green ${tmpf1} ";" ${tmpf2}
     wget $1 -O ${tmpf1}
     echo >$2
     echo >${tmpf2}
@@ -94,7 +94,7 @@ write-mirror-file(){
         showline=${line}
         if [[ ${line} =~ ^[#]*(Server[ \t]*=[ \t]*(http.*))$ ]];then
             resp=($(checkurl ${BASH_REMATCH[2]}))
-            echo ${BASH_REMATCH[2]} "==>" ${resp[@]}
+            extend-echo green ${BASH_REMATCH[2]} "==>" ${resp[@]}
             if [[ ${resp[0]} == 0 ]];then
                 echo ${resp[1]} " " ${BASH_REMATCH[2]}>>${tmpf2}
             fi
@@ -114,7 +114,7 @@ update-mirror-file(){
     write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on /etc/pacman.d/mirrorlist
     write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist /etc/pacman.d/archlinuxcn-mirrorlist
     
-    sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
+    # sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
 
     checkok=`grep archlinuxcn /etc/pacman.conf`
     if [[ ${checkok} =~ "archlinuxcn" ]];then
