@@ -59,4 +59,13 @@ END{for(tt in dd0){printf "%s\t%s\t%s\n",tt,dd0[tt],dd1[tt]}}
 
 }
 
-mkfs-and-mount
+# awk 'ARGIND==1 {FS="[^0-9]+";aaa[$2]=$3} ARGIND==2 {FS="[()]+";print $2,($2 in aaa)?aaa[$2]:0}' aaa.txt bbb.txt
+
+
+#awk 'ARGIND==1 {a[$1]=a[$1]"|"$2;} ARGIND==2 {print $1;}' aaa.txt bbb.txt
+# awk 'ARGIND==0 {FS="[ \t]+";a[$1]=a[$1]"|"$2;}END{for(ttt in a){print ttt,"\t",a[ttt]}}' aaa.txt
+awk 'ARGIND==1 {aaa[$1]=aaa[$1]"|"$2;} ARGIND==2 {print $1,"\t",($1 in aaa)?aaa[$1]:"";}' aaa.txt bbb.txt
+awk 'ARGIND==1 {FS="[ \t]+";aaa[$1]=aaa[$1]"|"$2;} ARGIND==2 {print $1;}' aaa.txt bbb.txt
+
+awk '{if(ARGIND==1){FS="[ \t]+";aaa[$1]=aaa[$1]"|"$2;} if(ARGIND==2){print $1,"\t",($1 in aaa)?aaa[$1]:"";}}' aaa.txt bbb.txt
+#END{for(ttt in a){print ttt "\t" a[ttt]}}

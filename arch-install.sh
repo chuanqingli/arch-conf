@@ -53,7 +53,7 @@ echo-value(){
 }
 
 extend-echo(){
-<<'COMMENT'
+    <<'COMMENT'
 0 关闭所有属性 
 1 设置高亮度 
 4 下划线 
@@ -80,13 +80,13 @@ COMMENT
 
 checkurl() {
 	IFS=' ' output=( $(curl -s -m 5 -w "%{time_total} %{http_code}" "$1" -o/dev/null) )
-echo "$? ${output[0]} ${output[1]}" && return
+    echo "$? ${output[0]} ${output[1]}" && return
 }
 
 write-mirror-file(){
     tmpf1=$(mktemp)
     tmpf2=$(mktemp)
-    echo green ${tmpf1} ";" ${tmpf2}
+    extend-echo green ${tmpf1} ";" ${tmpf2}
     wget $1 -O ${tmpf1}
     echo >$2
     echo >${tmpf2}
@@ -129,12 +129,12 @@ update-mirror-file(){
 }
 
 updtest(){
-write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt
-write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt
+    write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt
+    write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt
 }
 
 mkfs-and-mount(){
-<<'COMMENT'
+    <<'COMMENT'
 按“分区 格式化类别 挂载点;”格式填写磁盘操作，格式化类别、挂载点不做操作的填0；
 格式化类别可选ext3、ext4、swap、0；
 挂载点如/、/home、/var、/tmp，不挂载填0；
@@ -142,70 +142,72 @@ mkfs-and-mount(){
 
 COMMENT
 
-sddata=(
-"/dev/sda1 ext4 /"
-"/dev/sda3 ext4 /home"
-"/dev/sda2 swap 0"
-)
+    sddata=(
+        "/dev/sda1 ext4 /"
+        "/dev/sda3 ext4 /home"
+        "/dev/sda2 swap 0"
+    )
 
-devdata=`fdisk -l|grep ^/dev/sd|awk '{print $1}'`
-for i in ${!sddata[@]};do
+    devdata=`fdisk -l|grep ^/dev/sd|awk '{print $1}'`
+    for i in ${!sddata[@]};do
 
-    ppp=(${sddata[$i]})
+        ppp=(${sddata[$i]})
 
-    if [[ ${#ppp[@]} -ne 3 ]];then
-        continue;
-    fi
+        if [[ ${#ppp[@]} -ne 3 ]];then
+            continue;
+        fi
 
-    checkok=0
-    for x in ${devdata};do
-        if [[ $x == ${ppp[0]} ]];then
-            checkok=1
-            break;
+        checkok=0
+        for x in ${devdata};do
+            if [[ $x == ${ppp[0]} ]];then
+                checkok=1
+                break;
+            fi
+        done
+
+        if [[ ${checkok} == 0 ]];then
+            continue;
+        fi
+
+        if [[ ${ppp[1]} == swap ]];then
+            mkswap ${ppp[0]}
+            swapon ${ppp[0]}
+            continue;
+        elif [[ ${ppp[1]} != 0 ]];then
+            mkfs -t ${ppp[1]} ${ppp[0]}
+        fi
+
+        if [[ ${ppp[2]} != 0 ]];then
+            mpath=/mnt${ppp[2]}
+            if [[ ${mpath} != "/" ]];then
+                mkdir -p ${mpath}
+            fi
+            mount ${ppp[0]} ${mpath}
         fi
     done
-
-    if [[ ${checkok} == 0 ]];then
-        continue;
-    fi
-
-    if [[ ${ppp[1]} == swap ]];then
-        mkswap ${ppp[0]}
-        swapon ${ppp[0]}
-        continue;
-    elif [[ ${ppp[1]} != 0 ]];then
-        mkfs -t ${ppp[1]} ${ppp[0]}
-    fi
-
-    if [[ ${ppp[2]} != 0 ]];then
-        mpath=/mnt${ppp[2]}
-        if [[ ${mpath} != "/" ]];then
-            mkdir -p ${mpath}
-        fi
-        mount ${ppp[0]} ${mpath}
-    fi
-done
 }
 
 before-chroot(){
-extend-echo red "cfdisk!"
-fdisk -l
-cfdisk
-#fdisk /dev/sda
+    update-mirror-file
+    
+    extend-echo red "cfdisk!"
+    fdisk -l
+    cfdisk
+    #fdisk /dev/sda
 
-extend-echo red "mkfs and mount!"
-mkfs-and-mount
+    extend-echo red "mkfs and mount!"
+    mkfs-and-mount
 
-extend-echo red "pacstrap base system!"
-pacstrap -i /mnt base base-devel
+    extend-echo red "pacstrap base system!"
+    pacstrap -i /mnt base base-devel wget gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub google-chrome wps-office wqy-zenhei ttf-wps-fonts xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
 
-genfstab -U /mnt > /mnt/etc/fstab
+    genfstab -U /mnt > /mnt/etc/fstab
 
-extend-echo red "cp install.sh!"
-cp arch-install.sh /mnt
+    extend-echo red "cp install.sh!"
+    cp arch-install.sh /mnt
 
-extend-echo red "arch-chroot!"
-arch-chroot /mnt
+    extend-echo red "arch-chroot!"
+    arch-chroot /mnt
 }
 
 write-home-conf(){
@@ -216,9 +218,6 @@ write-home-conf(){
 }
 
 after-chroot(){
-    extend-echo red "pacman soft!"
-    pacman -S gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub google-chrome wps-office wqy-zenhei ttf-wps-fonts xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
-    
     extend-echo red "zone and time update!"
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
     hwclock --systohc --localtime
@@ -244,29 +243,28 @@ after-chroot(){
 }
 
 domain(){
-   case $1 in
+    case $1 in
         test)
             updtest
             ;;
         mirror)
             update-mirror-file
-        ;;
+            ;;
         before)
-            update-mirror-file
             before-chroot
-        ;;
-       after)
+            ;;
+        after)
             after-chroot
-        ;;
-       en_us)
+            ;;
+        en_us)
             LANG=en_US.UTF-8
-        ;;
-       zh_cn)
+            ;;
+        zh_cn)
             LANG=zh_CN.UTF-8
-        ;;
-    *)
-        echo "before after en_us zh_cn"
-        ;;
+            ;;
+        *)
+            echo "before after en_us zh_cn"
+            ;;
     esac
 }
 
