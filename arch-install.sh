@@ -114,7 +114,7 @@ update-mirror-file(){
     write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on /etc/pacman.d/mirrorlist
     write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist /etc/pacman.d/archlinuxcn-mirrorlist
     
-    #sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
+    sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
 
     checkok=`grep archlinuxcn /etc/pacman.conf`
     if [[ ${checkok} =~ "archlinuxcn" ]];then
@@ -193,7 +193,6 @@ fdisk -l
 cfdisk
 #fdisk /dev/sda
 
-
 extend-echo red "mkfs and mount!"
 mkfs-and-mount
 
@@ -209,34 +208,39 @@ extend-echo red "arch-chroot!"
 arch-chroot /mnt
 }
 
+write-home-conf(){
+    localeconf=/home/$1/.config/locale.conf
+    echo "export LANG=zh_CN.UTF-8">>${localeconf}
+    echo "export LANGUAGE=zh_CN:en_US">>${localeconf}
+    echo "export XMODIFIERS=@im=fcitx">>${localeconf}
+}
+
 after-chroot(){
-
-extend-echo red "pacman soft!"
-pacman -S gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub google-chrome wps-office wqy-zenhei ttf-wps-fonts xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
+    extend-echo red "pacman soft!"
+    pacman -S gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub google-chrome wps-office wqy-zenhei ttf-wps-fonts xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
     
-extend-echo red "zone and time update!"
-ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-hwclock --systohc --localtime
+    extend-echo red "zone and time update!"
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+    hwclock --systohc --localtime
 
-extend-echo red "chuanqing!"
-echo chuanqing>/etc/hostname
+    extend-echo red "chuanqing!"
+    echo chuanqing>/etc/hostname
 
-useradd -m -g wheel chuanqing
-passwd chuanqing
+    useradd -m -g wheel chuanqing
+    passwd chuanqing
 
-extend-echo red "locale!"
-echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen
-locale-gen
-echo "export LANG=zh_CN.UTF-8">>/etc/locale.conf
-echo "export LANGUAGE=zh_CN:en_US">>/etc/locale.conf
-echo "export XMODIFIERS=@im=fcitx">>/etc/locale.conf
+    extend-echo red "locale!"
 
-grub-install --recheck /dev/sda
-grub-mkconfig -o /boot/grub/grub.cfg
-systemctl enable dhcpcd
-systemctl enable lightdm
-systemctl enable NetworkManager
-#systemctl enable xdm.service
+    sed -i 's/^#\(\(zh_CN\|en_US\)\.UTF-8 UTF-8.*\)$/\1/g' /etc/pacman.conf
+    locale-gen
+    write-home-conf chuanqing
+
+    grub-install --recheck /dev/sda
+    grub-mkconfig -o /boot/grub/grub.cfg
+    systemctl enable dhcpcd
+    systemctl enable lightdm
+    systemctl enable NetworkManager
+    #systemctl enable xdm.service
 }
 
 domain(){
