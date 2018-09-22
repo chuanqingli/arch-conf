@@ -256,7 +256,7 @@ before-chroot(){
     mkfs-mount-grub familysdb
 
     extend-echo red "pacstrap base system!"
-    pacstrap -i /mnt base base-devel wget gvim emacs thunderbird wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
+    pacstrap -i /mnt base base-devel wget gvim emacs thunderbird firefox wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
 
     genfstab -U /mnt > /mnt/etc/fstab
 
@@ -269,14 +269,12 @@ before-chroot(){
 }
 
 write-home-conf(){
-    localeconf=/home/$1/.config/locale.conf
-    echo "export LANG=zh_CN.UTF-8">>${localeconf}
-    echo "export LANGUAGE=zh_CN:en_US">>${localeconf}
-    echo "export XMODIFIERS=@im=fcitx">>${localeconf}
+    write-locale-conf /home/$1/.config/locale.conf
 }
 
 write-locale-conf(){
-    localeconf=/etc/locale.conf
+    localeconf=$1
+    echo>${localeconf}
     echo "export LANG=zh_CN.UTF-8">>${localeconf}
     echo "export LANGUAGE=zh_CN:en_US">>${localeconf}
     echo "export XMODIFIERS=@im=fcitx">>${localeconf}
@@ -310,7 +308,7 @@ after-chroot(){
     sed -i 's/^#\(\(zh_CN\|en_US\)\.UTF-8 UTF-8.*\)$/\1/g' /etc/pacman.conf
     locale-gen
 
-    write-locale-conf
+    write-locale-conf /etc/locale.conf
 
     mkfs-mount-grub grubinstall
     grub-mkconfig -o /boot/grub/grub.cfg
