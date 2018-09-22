@@ -13,11 +13,13 @@
 9、变量的计算；
 COMMENT
 
+ccho-
+
 echo-color-value(){
     if [[ $1 =~ ^(B)?([a-z]+)$ ]];then
         t1=30
         if [[ ${BASH_REMATCH[1]} == 'B' ]];then
-            t1=40
+	    t1=40
         fi
 
         ccc=(black red green yellow blue purple indigo white)
