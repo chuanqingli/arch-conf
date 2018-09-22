@@ -136,18 +136,42 @@ updtest(){
     write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt
 }
 
-mkfs-and-mount-nouse(){
-    mkfs -v ext4 /dev/md0
-    mkswap /dev/sda8
-    swapon /dev/sda8
+mkfs-mount-grub(){
+    if [[ $1 == familysda ]];then
+        cfdisk /dev/sda
+        mkfs -t ext4 /dev/md0
+        mkswap /dev/sda8
+        swapon /dev/sda8
 
-    mount /dev/md0 /mnt
-    mkdir -p /mnt/home
-    mount /dev/sda9 /mnt/home
+        mount /dev/md0 /mnt
+        mkdir -p /mnt/home
+        mount /dev/sda9 /mnt/home
+    elif [[ $1 == familysdb ]];then #familysdb
+        cfdisk /dev/sdb
+        mkfs -t ext4 /dev/sdb1
+        mkswap /dev/sdb2
+        swapon /dev/sdb2
+
+        mount /dev/sdb1 /mnt
+        mkdir -p /mnt/home
+        mount /dev/sdb3 /mnt/home
+    elif [[ $1 == companysda ]];then #companysda
+        cfdisk /dev/sda
+        mkfs -t ext4 /dev/md0
+        mkswap /dev/sda8
+        swapon /dev/sda8
+
+        mount /dev/md0 /mnt
+        mkdir -p /mnt/home
+        mount /dev/sda9 /mnt/home
+    elif [[ $1 == grubinstall ]];then #companysda
+        grub-install --recheck /dev/sdb
+        
+    fi
 }
 
 
-mkfs-and-mount(){
+mkfs-mount-grub-nouse(){
     cfdisk /dev/sdb
     
     <<'COMMENT'
@@ -217,7 +241,7 @@ before-chroot(){
     #fdisk /dev/sda
 
     extend-echo red "mkfs and mount!"
-    mkfs-and-mount
+    mkfs-mount-grub familysdb
 
     extend-echo red "pacstrap base system!"
     pacstrap -i /mnt base base-devel wget gvim emacs wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
@@ -239,23 +263,33 @@ write-home-conf(){
     echo "export XMODIFIERS=@im=fcitx">>${localeconf}
 }
 
+write-host-name(){
+    extend-echo red "$1!"
+    echo $1>/etc/hostname
+}
+
+add-user(){
+    useradd -m -g wheel $1
+    passwd $1
+}
+
+
 after-chroot(){
     extend-echo red "zone and time update!"
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
     hwclock --systohc --localtime
 
-    extend-echo red "chuanqing!"
-    echo chuanqing>/etc/hostname
+    write-host-name chuanqing
+    add-user chuanqing
 
-    useradd -m -g wheel chuanqing
-    passwd chuanqing
+    passwd
 
     extend-echo red "locale!"
 
     sed -i 's/^#\(\(zh_CN\|en_US\)\.UTF-8 UTF-8.*\)$/\1/g' /etc/pacman.conf
     locale-gen
 
-    grub-install --recheck /dev/sda
+    mkfs-mount-grub grubinstall
     grub-mkconfig -o /boot/grub/grub.cfg
     systemctl enable dhcpcd
     systemctl enable lightdm
@@ -286,6 +320,12 @@ domain(){
         after)
             after-chroot
             ;;
+        homeconf)
+            write-home-conf chuanqing
+            ;;
+        install)
+            self-install
+            ;;
         en_us)
             LANG=en_US.UTF-8
             ;;
@@ -293,7 +333,7 @@ domain(){
             LANG=zh_CN.UTF-8
             ;;
         *)
-            echo "before after en_us zh_cn"
+            echo "before after homeconf install en_us zh_cn"
             ;;
     esac
 }
