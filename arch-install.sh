@@ -328,7 +328,10 @@ self-install(){
     update-mirror-file 0
     update-mirror-file 1
     extend-echo red "pacman soft!"
-    pacman -S google-chrome wps-office wqy-zenhei ttf-wps-fonts
+    pkgs=(
+google-chrome wps-office wqy-zenhei ttf-wps-fonts)
+    
+    pacman -S ${pkgs[*]}
 }
 
 domain(){
