@@ -148,6 +148,8 @@ mkfs-and-mount-nouse(){
 
 
 mkfs-and-mount(){
+    cfdisk /dev/sdb
+    
     <<'COMMENT'
 按“分区 格式化类别 挂载点;”格式填写磁盘操作，格式化类别、挂载点不做操作的填0；
 格式化类别可选ext3、ext4、swap、0；
@@ -212,14 +214,13 @@ before-chroot(){
     
     extend-echo red "cfdisk!"
     fdisk -l
-    cfdisk
     #fdisk /dev/sda
 
     extend-echo red "mkfs and mount!"
     mkfs-and-mount
 
     extend-echo red "pacstrap base system!"
-    pacstrap -i /mnt base base-devel wget gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub google-chrome wps-office wqy-zenhei ttf-wps-fonts xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
+    pacstrap -i /mnt base base-devel wget gvim emacs wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
 
     genfstab -U /mnt > /mnt/etc/fstab
 
@@ -239,9 +240,6 @@ write-home-conf(){
 }
 
 after-chroot(){
-    extend-echo red "pacman soft!"
-    pacman -S base base-devel wget gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub google-chrome wps-office wqy-zenhei ttf-wps-fonts xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
-
     extend-echo red "zone and time update!"
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
     hwclock --systohc --localtime
@@ -256,7 +254,6 @@ after-chroot(){
 
     sed -i 's/^#\(\(zh_CN\|en_US\)\.UTF-8 UTF-8.*\)$/\1/g' /etc/pacman.conf
     locale-gen
-    write-home-conf chuanqing
 
     grub-install --recheck /dev/sda
     grub-mkconfig -o /boot/grub/grub.cfg
@@ -266,10 +263,19 @@ after-chroot(){
     #systemctl enable xdm.service
 }
 
+self-install(){
+    update-mirror-file 0
+    update-mirror-file 1
+    extend-echo red "pacman soft!"
+    pacman -S google-chrome wps-office wqy-zenhei ttf-wps-fonts
+}
+
 domain(){
     case $1 in
         test)
             updtest
+            write-home-conf chuanqing
+            self-install
             ;;
         mirror)
             update-mirror-file 0
