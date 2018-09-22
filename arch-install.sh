@@ -170,6 +170,18 @@ mkfs-mount-grub(){
     fi
 }
 
+static-ip-conf(){
+    tname=enp5s0
+    conffile=/etc/netctl/${tname}
+    echo>${conffile}
+    echo "Interface=${tname}">>${conffile}
+    echo "Connection=ethernet">>${conffile}
+    echo "IP=static">>${conffile}
+    echo "Address=('192.168.33.47/24')">>${conffile}
+    echo "Gateway=('192.168.33.254')">>${conffile}
+    echo "DNS=('202.100.192.68')    ">>${conffile}
+}
+
 
 mkfs-mount-grub-nouse(){
     cfdisk /dev/sdb
@@ -263,6 +275,15 @@ write-home-conf(){
     echo "export XMODIFIERS=@im=fcitx">>${localeconf}
 }
 
+write-locale-conf(){
+    localeconf=/etc/locale.conf
+    echo "export LANG=zh_CN.UTF-8">>${localeconf}
+    echo "export LANGUAGE=zh_CN:en_US">>${localeconf}
+    echo "export XMODIFIERS=@im=fcitx">>${localeconf}
+}
+
+
+
 write-host-name(){
     extend-echo red "$1!"
     echo $1>/etc/hostname
@@ -289,6 +310,8 @@ after-chroot(){
     sed -i 's/^#\(\(zh_CN\|en_US\)\.UTF-8 UTF-8.*\)$/\1/g' /etc/pacman.conf
     locale-gen
 
+    write-locale-conf
+
     mkfs-mount-grub grubinstall
     grub-mkconfig -o /boot/grub/grub.cfg
     systemctl enable dhcpcd
@@ -313,6 +336,9 @@ domain(){
             ;;
         mirror)
             update-mirror-file 0
+            ;;
+        staticip)
+            static-ip-conf
             ;;
         before)
             before-chroot
