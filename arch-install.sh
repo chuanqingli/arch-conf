@@ -111,18 +111,21 @@ write-mirror-file(){
 update-mirror-file(){
     extend-echo red "wget mirrorlist and update!"
 
-    write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on /etc/pacman.d/mirrorlist
-    write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist /etc/pacman.d/archlinuxcn-mirrorlist
-    
-    # sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
+    if [[ $1 == 0 ]];then
+        write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on /etc/pacman.d/mirrorlist
+    elif [[ $1 == 1 ]];then
+        write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist /etc/pacman.d/archlinuxcn-mirrorlist
+        # sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
 
-    checkok=`grep archlinuxcn /etc/pacman.conf`
-    if [[ ${checkok} =~ "archlinuxcn" ]];then
-        return
+        checkok=`grep archlinuxcn /etc/pacman.conf`
+        if [[ ${checkok} =~ "archlinuxcn" ]];then
+            return
+        fi
+        echo "[archlinuxcn]">>/etc/pacman.conf
+        #echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
+        echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
     fi
-    echo "[archlinuxcn]">>/etc/pacman.conf
-    #echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
-    echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
+    
 
     #更新软件包列表
     pacman -Syy
@@ -133,11 +136,28 @@ updtest(){
     write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt
 }
 
+mkfs-and-mount-nouse(){
+    mkfs -v ext4 /dev/md0
+    mkswap /dev/sda8
+    swapon /dev/sda8
+
+    mount /dev/md0 /mnt
+    mkdir -p /mnt/home
+    mount /dev/sda9 /mnt/home
+}
+
+
 mkfs-and-mount(){
     <<'COMMENT'
 按“分区 格式化类别 挂载点;”格式填写磁盘操作，格式化类别、挂载点不做操作的填0；
 格式化类别可选ext3、ext4、swap、0；
 挂载点如/、/home、/var、/tmp，不挂载填0；
+
+    sddata=(
+        "/dev/md0 ext4 /"
+        "/dev/sda9 ext4 /home"
+        "/dev/sda8 swap 0"
+    )
 
 
 COMMENT
@@ -148,7 +168,7 @@ COMMENT
         "/dev/sda2 swap 0"
     )
 
-    devdata=`fdisk -l|grep ^/dev/sd|awk '{print $1}'`
+    # devdata=`fdisk -l|grep ^/dev/sd|awk '{print $1}'`
     for i in ${!sddata[@]};do
 
         ppp=(${sddata[$i]})
@@ -157,17 +177,17 @@ COMMENT
             continue;
         fi
 
-        checkok=0
-        for x in ${devdata};do
-            if [[ $x == ${ppp[0]} ]];then
-                checkok=1
-                break;
-            fi
-        done
+        # checkok=0
+        # for x in ${devdata};do
+        #     if [[ $x == ${ppp[0]} ]];then
+        #         checkok=1
+        #         break;
+        #     fi
+        # done
 
-        if [[ ${checkok} == 0 ]];then
-            continue;
-        fi
+        # if [[ ${checkok} == 0 ]];then
+        #     continue;
+        # fi
 
         if [[ ${ppp[1]} == swap ]];then
             mkswap ${ppp[0]}
@@ -188,7 +208,7 @@ COMMENT
 }
 
 before-chroot(){
-    update-mirror-file
+    update-mirror-file 0
     
     extend-echo red "cfdisk!"
     fdisk -l
@@ -219,6 +239,9 @@ write-home-conf(){
 }
 
 after-chroot(){
+    extend-echo red "pacman soft!"
+    pacman -S base base-devel wget gvim wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub google-chrome wps-office wqy-zenhei ttf-wps-fonts xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
+
     extend-echo red "zone and time update!"
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
     hwclock --systohc --localtime
@@ -249,7 +272,7 @@ domain(){
             updtest
             ;;
         mirror)
-            update-mirror-file
+            update-mirror-file 0
             ;;
         before)
             before-chroot
