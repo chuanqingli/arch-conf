@@ -94,7 +94,9 @@ write-mirror-file(){
         showline=${line}
         if [[ ${line} =~ ^[#]*(Server[ \t]*=[ \t]*(http.*))$ ]];then
             resp=($(checkurl ${BASH_REMATCH[2]}))
-            extend-echo green ${BASH_REMATCH[2]} "==>" ${resp[@]}
+            showstr=${BASH_REMATCH[2]}'==>'${resp[*]}
+            extend-echo yellow "$showstr"
+            # echo ${showstr}
             if [[ ${resp[0]} == 0 ]];then
                 echo ${resp[1]} " " ${BASH_REMATCH[2]}>>${tmpf2}
             fi
@@ -256,8 +258,12 @@ before-chroot(){
     mkfs-mount-grub familysdb
 
     extend-echo red "pacstrap base system!"
-    pacstrap -i /mnt base base-devel wget gvim emacs thunderbird firefox wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
+    pkgs=(
+base base-devel wget gvim emacs thunderbird firefox wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
+)
 
+    
+    pacstrap -i /mnt ${pkgs[*]}
     genfstab -U /mnt > /mnt/etc/fstab
 
     extend-echo red "cp install.sh!"
@@ -329,8 +335,6 @@ domain(){
     case $1 in
         test)
             updtest
-            write-home-conf chuanqing
-            self-install
             ;;
         mirror)
             update-mirror-file 0
@@ -361,5 +365,6 @@ domain(){
             ;;
     esac
 }
+
 
 domain $1
