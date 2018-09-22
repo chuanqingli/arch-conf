@@ -244,7 +244,7 @@ before-chroot(){
     mkfs-mount-grub familysdb
 
     extend-echo red "pacstrap base system!"
-    pacstrap -i /mnt base base-devel wget gvim emacs wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
+    pacstrap -i /mnt base base-devel wget gvim emacs thunderbird wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
 
     genfstab -U /mnt > /mnt/etc/fstab
 
