@@ -138,11 +138,17 @@ updtest(){
     write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt
 }
 
+# company
+# declare -A mkfsmap=([ext4]="md0" [swap]="sda8")
+# declare -A mountmap=([md0]=/ [sda9]=/home)
+# declare -A diskmap=([cfdisk]="sda" [grub]="sda")
+# declare -A hostmap=([host]=chuanqing [user]=chuanqing [nic]=enp5s0 [addr]=192.168.33.47/24 [gw]=192.168.33.254 [dns]=202.100.192.68)
 
-declare -A mkfsmap=([ext4]="md0" [swap]="sda8")
-declare -A mountmap=([md0]=/ [sda9]=/home)
-declare -A diskmap=([cfdisk]="sda" [grub]="sda")
-declare -A hostmap=([host]=chuanqing [user]=chuanqing [nic]=enp5s0 [addr]=192.168.33.47/24 [gw]=192.168.33.254 [dns]=202.100.192.68)
+# family
+declare -A mkfsmap=([ext4]="sdb1" [swap]="sdb2")
+declare -A mountmap=([sdb1]=/ [sdb3]=/home)
+declare -A diskmap=([cfdisk]="sdb" [grub]="sdb")
+declare -A hostmap=([host]=chuanqing [user]=chuanqing)
 
 mkfs-mount-grub(){
     if [[ $1 == cfdisk ]];then
@@ -365,7 +371,13 @@ after-chroot(){
 
     mkfs-mount-grub grub
     grub-mkconfig -o /boot/grub/grub.cfg
-    systemctl enable dhcpcd #静态ip时，这里设为disable，因为和networkmanager冲突
+
+    #网卡为空
+    if [[ -z ${hostmap[nic]} ]];then
+	systemctl enable dhcpcd
+    else
+	systemctl disable dhcpcd #静态ip时，这里设为disable，因为和networkmanager冲突
+    fi
     systemctl enable lightdm
     systemctl enable NetworkManager
     systemctl enable openntpd
