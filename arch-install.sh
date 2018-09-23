@@ -261,9 +261,12 @@ before-chroot(){
 
     extend-echo red "pacstrap base system!"
     pkgs=(
-base base-devel wget gvim emacs thunderbird firefox wqy-microhei fcitx-im fcitx-configtool xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal lightdm lightdm-gtk-greeter networkmanager network-manager-applet
+	base base-devel wget gvim emacs thunderbird firefox wqy-microhei
+	fcitx-im fcitx-configtool
+	xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal	lightdm lightdm-gtk-greeter
+	networkmanager network-manager-applet
+	openntpd
 )
-
     
     pacstrap -i /mnt ${pkgs[*]}
     genfstab -U /mnt > /mnt/etc/fstab
@@ -313,16 +316,17 @@ after-chroot(){
 
     extend-echo red "locale!"
 
-    sed -i 's/^#\(\(zh_CN\|en_US\)\.UTF-8 UTF-8.*\)$/\1/g' /etc/pacman.conf
+    sed -i 's/^#\(\(zh_CN\|en_US\)\.UTF-8 UTF-8.*\)$/\1/g' /etc/locale.gen
     locale-gen
 
     write-locale-conf /etc/locale.conf
 
     mkfs-mount-grub grubinstall
     grub-mkconfig -o /boot/grub/grub.cfg
-    systemctl enable dhcpcd
+    systemctl disable dhcpcd
     systemctl enable lightdm
     systemctl enable NetworkManager
+    systemctl enable openntpd
     #systemctl enable xdm.service
 }
 
@@ -331,6 +335,7 @@ self-install(){
     update-mirror-file 1
     extend-echo red "pacman soft!"
     pkgs=(
+	archlinuxcn-keyring
 google-chrome wps-office wqy-zenhei ttf-wps-fonts)
     
     pacman -S ${pkgs[*]}
