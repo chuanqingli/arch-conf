@@ -13,8 +13,6 @@
 9、变量的计算；
 COMMENT
 
-ccho-
-
 echo-color-value(){
     if [[ $1 =~ ^(B)?([a-z]+)$ ]];then
         t1=30
@@ -140,7 +138,49 @@ updtest(){
     write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt
 }
 
+
+declare -A mkfsmap=([ext4]="md0" [swap]="sda8")
+declare -A mountmap=([md0]=/ [sda9]=/home)
+declare -A diskmap=([cfdisk]="sda" [grub]="sda")
+declare -A hostmap=([host]=chuanqing [user]=chuanqing [nic]=enp5s0 [addr]=192.168.33.47/24 [gw]=192.168.33.254 [dns]=202.100.192.68)
+
 mkfs-mount-grub(){
+    if [[ $1 == cfdisk ]];then
+	arry=(${diskmap[cfdisk]})
+	for key in ${arry[@]};do
+	    cfdisk /dev/${key}
+	done
+    elif [[ $1 == mkfs ]];then
+	for key in ${!mkfsmap[@]};do
+	    fsvalue=(${mkfsmap[${key}]})
+	    for vkey in ${fsvalue};do
+		if [[ ${key} == swap ]];then
+		    mkswap /dev/${vkey}
+		    swapon /dev/${vkey}
+		else
+		    mkfs -t ${key} /dev/${vkey}
+		fi
+	    done
+	done
+    elif [[ $1 == mount ]];then
+	for key in ${!mountmap[@]};do
+	    fsvalue=${mountmap[${key}]}
+	    echo /dev/${key} /mnt${fsvalue}
+	    if [[ ${fsvalue} != / ]];then
+		mkdir -p /mnt${fsvalue}
+	    fi
+	    mount /dev/${key} /mnt${fsvalue} 
+	done
+    elif [[ $1 == grub ]];then
+	arry=(${diskmap[grub]})
+	for key in ${arry[@]};do
+	    echo ${key}
+            grub-install --recheck /dev/${key}
+	done
+    fi
+}
+
+mkfs-mount-grub-test(){
     if [[ $1 == familysda ]];then
         cfdisk /dev/sda
         mkfs -t ext4 /dev/md0
@@ -175,15 +215,15 @@ mkfs-mount-grub(){
 }
 
 static-ip-conf(){
-    tname=enp5s0
+    tname=${hostmap[nic]}
     conffile=/etc/netctl/${tname}
     echo>${conffile}
     echo "Interface=${tname}">>${conffile}
     echo "Connection=ethernet">>${conffile}
     echo "IP=static">>${conffile}
-    echo "Address=('192.168.33.47/24')">>${conffile}
-    echo "Gateway=('192.168.33.254')">>${conffile}
-    echo "DNS=('202.100.192.68')    ">>${conffile}
+    echo "Address=('${hostmap[addr]}')">>${conffile}
+    echo "Gateway=('${hostmap[gw]}')">>${conffile}
+    echo "DNS=('${hostmap[dns]}')">>${conffile}
 }
 
 
@@ -257,7 +297,9 @@ before-chroot(){
     #fdisk /dev/sda
 
     extend-echo red "mkfs and mount!"
-    mkfs-mount-grub familysdb
+    mkfs-mount-grub cfdisk
+    mkfs-mount-grub mkfs
+    mkfs-mount-grub mount
 
     extend-echo red "pacstrap base system!"
     pkgs=(
@@ -309,8 +351,8 @@ after-chroot(){
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
     hwclock --systohc --localtime
 
-    write-host-name chuanqing
-    add-user chuanqing
+    write-host-name ${hostmap[host]}
+    add-user ${hostmap[user]}
 
     passwd
 
@@ -321,9 +363,9 @@ after-chroot(){
 
     write-locale-conf /etc/locale.conf
 
-    mkfs-mount-grub grubinstall
+    mkfs-mount-grub grub
     grub-mkconfig -o /boot/grub/grub.cfg
-    systemctl disable dhcpcd
+    systemctl enable dhcpcd #静态ip时，这里设为disable，因为和networkmanager冲突
     systemctl enable lightdm
     systemctl enable NetworkManager
     systemctl enable openntpd
@@ -359,7 +401,7 @@ domain(){
             after-chroot
             ;;
         homeconf)
-            write-home-conf chuanqing
+            write-home-conf ${hostmap[user]}
             ;;
         install)
             self-install
