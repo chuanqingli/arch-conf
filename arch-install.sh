@@ -11,6 +11,7 @@
 7、sed格式化或清除指定内容；
 8、grep查找内容；
 9、变量的计算；
+10、下标数组和关联数组；
 COMMENT
 
 echo-color-value(){
@@ -111,23 +112,19 @@ write-mirror-file(){
 
 
 update-mirror-file(){
-    extend-echo red "wget mirrorlist and update!"
+    extend-echo yellow "wget mirrorlist and update!"
 
-    if [[ $1 == 0 ]];then
-        write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on /etc/pacman.d/mirrorlist
-    elif [[ $1 == 1 ]];then
-        write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist /etc/pacman.d/archlinuxcn-mirrorlist
-        # sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
+    write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on /etc/pacman.d/mirrorlist
+    write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist /etc/pacman.d/archlinuxcn-mirrorlist
+    # sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
 
-        checkok=`grep archlinuxcn /etc/pacman.conf`
-        if [[ ${checkok} =~ "archlinuxcn" ]];then
-            return
-        fi
-        echo "[archlinuxcn]">>/etc/pacman.conf
-        #echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
-        echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
+    checkok=`grep archlinuxcn /etc/pacman.conf`
+    if [[ ${checkok} =~ "archlinuxcn" ]];then
+        return
     fi
-    
+    echo "[archlinuxcn]">>/etc/pacman.conf
+    #echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
+    echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
 
     #更新软件包列表
     pacman -Syy
@@ -145,78 +142,68 @@ updtest(){
 # declare -A hostmap=([host]=chuanqing [user]=chuanqing [nic]=enp5s0 [addr]=192.168.33.47/24 [gw]=192.168.33.254 [dns]=202.100.192.68)
 
 # family
+# 要格式化的分区
 declare -A mkfsmap=([ext4]="sdb1" [swap]="sdb2")
-declare -A mountmap=([sdb1]=/ [sdb3]=/home)
+# 指定的挂载
+declare -A mountmap=([sdb1]=/ [sdb3]=/home [sda5]=/media/win/E)
+# 操作所指向的磁盘
 declare -A diskmap=([cfdisk]="sdb" [grub]="sdb")
+# 主机名和用户名 如连网用静态ip，需要增加nic、addr、gw、dns节点
 declare -A hostmap=([host]=chuanqing [user]=chuanqing)
+# 需要增加的挂载
+declare -a fstabary=("# /dev/sda5" "UUID=000B89830009F592 /media/win/E ntfs-3g defaults 0 0") #blkid查uuid
+# 自定义的安装命令
+declare -a softary=()
 
-mkfs-mount-grub(){
+extend-eval(){
     if [[ $1 == cfdisk ]];then
-	arry=(${diskmap[cfdisk]})
-	for key in ${arry[@]};do
-	    cfdisk /dev/${key}
-	done
-    elif [[ $1 == mkfs ]];then
-	for key in ${!mkfsmap[@]};do
-	    fsvalue=(${mkfsmap[${key}]})
-	    for vkey in ${fsvalue};do
-		if [[ ${key} == swap ]];then
-		    mkswap /dev/${vkey}
-		    swapon /dev/${vkey}
-		else
-		    mkfs -t ${key} /dev/${vkey}
-		fi
+	    arry=(${diskmap[cfdisk]})
+	    for key in ${arry[@]};do
+	        cfdisk /dev/${key}
 	    done
-	done
+    elif [[ $1 == mkfs ]];then
+	    for key in ${!mkfsmap[@]};do
+	        fsvalue=(${mkfsmap[${key}]})
+	        for vkey in ${fsvalue};do
+		        if [[ ${key} == swap ]];then
+		            mkswap /dev/${vkey}
+		            swapon /dev/${vkey}
+		        else
+		            mkfs -t ${key} /dev/${vkey}
+		        fi
+	        done
+	    done
     elif [[ $1 == mount ]];then
-	for key in ${!mountmap[@]};do
-	    fsvalue=${mountmap[${key}]}
-	    echo /dev/${key} /mnt${fsvalue}
-	    if [[ ${fsvalue} != / ]];then
-		mkdir -p /mnt${fsvalue}
-	    fi
-	    mount /dev/${key} /mnt${fsvalue} 
-	done
+	    for key in ${!mountmap[@]};do
+	        fsvalue=${mountmap[${key}]}
+	        echo /dev/${key} /mnt${fsvalue}
+	        if [[ ${fsvalue} != / ]];then
+		        mkdir -p /mnt${fsvalue}
+	        fi
+	        mount /dev/${key} /mnt${fsvalue} 
+	    done
     elif [[ $1 == grub ]];then
-	arry=(${diskmap[grub]})
-	for key in ${arry[@]};do
-	    echo ${key}
+	    arry=(${diskmap[grub]})
+	    for key in ${arry[@]};do
+	        echo ${key}
             grub-install --recheck /dev/${key}
-	done
-    fi
-}
-
-mkfs-mount-grub-test(){
-    if [[ $1 == familysda ]];then
-        cfdisk /dev/sda
-        mkfs -t ext4 /dev/md0
-        mkswap /dev/sda8
-        swapon /dev/sda8
-
-        mount /dev/md0 /mnt
-        mkdir -p /mnt/home
-        mount /dev/sda9 /mnt/home
-    elif [[ $1 == familysdb ]];then #familysdb
-        cfdisk /dev/sdb
-        mkfs -t ext4 /dev/sdb1
-        mkswap /dev/sdb2
-        swapon /dev/sdb2
-
-        mount /dev/sdb1 /mnt
-        mkdir -p /mnt/home
-        mount /dev/sdb3 /mnt/home
-    elif [[ $1 == companysda ]];then #companysda
-        cfdisk /dev/sda
-        mkfs -t ext4 /dev/md0
-        mkswap /dev/sda8
-        swapon /dev/sda8
-
-        mount /dev/md0 /mnt
-        mkdir -p /mnt/home
-        mount /dev/sda9 /mnt/home
-    elif [[ $1 == grubinstall ]];then #companysda
-        grub-install --recheck /dev/sdb
-        
+	    done
+    elif [[ $1 == fstab ]];then
+        genfstab -U /mnt > /mnt/etc/fstab
+	    for key in ${!fstabary[@]};do
+	        fsvalue=${fstabary[${key}]}
+	        echo ${fsvalue}>>/mnt/etc/fstab
+	    done
+        grub-mkconfig -o /boot/grub/grub.cfg
+    elif [[ $1 == soft ]];then
+        tmpary=$2
+        if [[ -z $2 ]];then
+            tmpary=${sortary[@]}
+        fi
+	    for key in ${!tmpary[@]};do
+	        fsvalue=${tmpary[${key}]}
+            ${fsvalue}
+	    done
     fi
 }
 
@@ -232,94 +219,51 @@ static-ip-conf(){
     echo "DNS=('${hostmap[dns]}')">>${conffile}
 }
 
-
-mkfs-mount-grub-nouse(){
-    cfdisk /dev/sdb
-    
-    <<'COMMENT'
-按“分区 格式化类别 挂载点;”格式填写磁盘操作，格式化类别、挂载点不做操作的填0；
-格式化类别可选ext3、ext4、swap、0；
-挂载点如/、/home、/var、/tmp，不挂载填0；
-
-    sddata=(
-        "/dev/md0 ext4 /"
-        "/dev/sda9 ext4 /home"
-        "/dev/sda8 swap 0"
-    )
-
-
-COMMENT
-
-    sddata=(
-        "/dev/sda1 ext4 /"
-        "/dev/sda3 ext4 /home"
-        "/dev/sda2 swap 0"
-    )
-
-    # devdata=`fdisk -l|grep ^/dev/sd|awk '{print $1}'`
-    for i in ${!sddata[@]};do
-
-        ppp=(${sddata[$i]})
-
-        if [[ ${#ppp[@]} -ne 3 ]];then
-            continue;
-        fi
-
-        # checkok=0
-        # for x in ${devdata};do
-        #     if [[ $x == ${ppp[0]} ]];then
-        #         checkok=1
-        #         break;
-        #     fi
-        # done
-
-        # if [[ ${checkok} == 0 ]];then
-        #     continue;
-        # fi
-
-        if [[ ${ppp[1]} == swap ]];then
-            mkswap ${ppp[0]}
-            swapon ${ppp[0]}
-            continue;
-        elif [[ ${ppp[1]} != 0 ]];then
-            mkfs -t ${ppp[1]} ${ppp[0]}
-        fi
-
-        if [[ ${ppp[2]} != 0 ]];then
-            mpath=/mnt${ppp[2]}
-            if [[ ${mpath} != "/" ]];then
-                mkdir -p ${mpath}
-            fi
-            mount ${ppp[0]} ${mpath}
-        fi
-    done
-}
-
 before-chroot(){
-    update-mirror-file 0
+    update-mirror-file
     
     extend-echo red "cfdisk!"
     fdisk -l
     #fdisk /dev/sda
 
     extend-echo red "mkfs and mount!"
-    mkfs-mount-grub cfdisk
-    mkfs-mount-grub mkfs
-    mkfs-mount-grub mount
+    extend-eval cfdisk
+    extend-eval mkfs
+    extend-eval mount
 
-    extend-echo red "pacstrap base system!"
+    extend-echo yellow "run pacstrap!"
     pkgs=(
-	base base-devel wget gvim emacs thunderbird firefox wqy-microhei
-	fcitx-im fcitx-configtool
-	xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal	lightdm lightdm-gtk-greeter
-	networkmanager network-manager-applet
-	openntpd
+        # 系统
+	    base base-devel
+        # 用于挂载ntfs分区时，增加对该分区写操作的支持(arch采用了udisks2来负责挂载分区)
+        ntfs-3g
+        # 下载 编辑器
+        wget gvim emacs
+        # 版本控制
+        git subversion
+        # ftp
+        filezilla
+        # 虚拟机
+        virtualbox
+        # 邮箱 火狐 文泉驿微米黑
+        thunderbird firefox wqy-microhei
+        # 输入法
+	    fcitx-im fcitx-configtool
+        # 桌面 登录器
+	    xorg xorg-xinit grub xfce4 xfce4-goodies xfce4-terminal	lightdm lightdm-gtk-greeter
+        # 网络管理
+	    networkmanager network-manager-applet
+        # 时间同步
+	    openntpd
+        # archlinuxcn支持
+        archlinuxcn-keyring
 )
     
     pacstrap -i /mnt ${pkgs[*]}
-    genfstab -U /mnt > /mnt/etc/fstab
 
-    extend-echo red "cp install.sh!"
+    extend-eval fstab
+
+    extend-echo yellow "cp install.sh!"
     cp arch-install.sh /mnt
     cp arch-install.sh /home
 
@@ -342,17 +286,26 @@ write-locale-conf(){
 
 
 write-host-name(){
-    extend-echo red "$1!"
+    extend-echo red "hostname==>$1!"
     echo $1>/etc/hostname
 }
 
 add-user(){
+    extend-echo yellow "add user==>$1!"
     useradd -m -g wheel $1
     passwd $1
 }
 
 
 after-chroot(){
+    extend-echo yellow "run pacman!"
+    pkgs=(
+        #谷歌 wps 字体支持
+        google-chrome wps-office ttf-wps-fonts wqy-zenhei
+        # 远程
+        xrdp
+    )
+    pacman -S ${pkgs[*]}
     extend-echo red "zone and time update!"
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
     hwclock --systohc --localtime
@@ -360,6 +313,7 @@ after-chroot(){
     write-host-name ${hostmap[host]}
     add-user ${hostmap[user]}
 
+    extend-echo yellow "root passwd update!"
     passwd
 
     extend-echo red "locale!"
@@ -369,39 +323,33 @@ after-chroot(){
 
     write-locale-conf /etc/locale.conf
 
-    mkfs-mount-grub grub
-    grub-mkconfig -o /boot/grub/grub.cfg
+    extend-eval grub
 
     #网卡为空
     if [[ -z ${hostmap[nic]} ]];then
-	systemctl enable dhcpcd
+	    systemctl enable dhcpcd
     else
-	systemctl disable dhcpcd #静态ip时，这里设为disable，因为和networkmanager冲突
+        #静态ip时，这里设为disable，因为和networkmanager冲突
+	    systemctl disable dhcpcd
     fi
     systemctl enable lightdm
     systemctl enable NetworkManager
     systemctl enable openntpd
-    #systemctl enable xdm.service
 }
 
 self-install(){
-    update-mirror-file 0
-    update-mirror-file 1
-    extend-echo red "pacman soft!"
-    pkgs=(
-	archlinuxcn-keyring
-google-chrome wps-office wqy-zenhei ttf-wps-fonts)
-    
-    pacman -S ${pkgs[*]}
+    tmpary=("ls -al" "echo 你好====" "ls -al /")
+    extend-eval soft ${tmpary}
 }
 
 domain(){
     case $1 in
         test)
-            updtest
+        # updtest
+            extend-eval soft
             ;;
         mirror)
-            update-mirror-file 0
+            update-mirror-file
             ;;
         staticip)
             static-ip-conf
@@ -425,7 +373,7 @@ domain(){
             LANG=zh_CN.UTF-8
             ;;
         *)
-            echo "before after homeconf install en_us zh_cn"
+            echo "before after homeconf install mirror staticip en_us zh_cn"
             ;;
     esac
 }
