@@ -1,71 +1,113 @@
 #!/bin/bash
-mkfs-and-mount(){
-<<'COMMENT'
-按“分区 格式化类别 挂载点;”格式填写磁盘操作，格式化类别、挂载点不做操作的填0；
-格式化类别可选ext3、ext4、swap、0；
-挂载点如/、/home、/var、/tmp，不挂载填0；
+declare -a mountary=(mount "sdb1 /" "sdb3 /home" "0 /media/win/E")
+declare -a mkfsary=(mkfs "ext4 sdb1" "swap sdb2")
+declare -a fstabary=(fstab "# /dev/sda5" "UUID=000B89830009F592 /media/win/E ntfs-3g defaults 0 0") #blkid查uuid
+declare -a softary=()
 
+# 操作所指向的磁盘
+declare -A diskmap=([cfdisk]="sdb" [grub]="sdb")
+# 主机名和用户名 如连网用静态ip，需要增加nic、addr、gw、dns节点
+declare -A hostmap=([host]=chuanqing [user]=chuanqing)
 
-COMMENT
-
-sddata=`((a1 ext4 /)
-(a3 ext4 /home)
-(a2 swap 0))`
-
-
-    # select mirror in "`tail -n 1 /etc/pacman.d/mirrorlist`" "`tail -n 2 /etc/pacman.d/mirrorlist | head -n 1`" "`tail -n 3 /etc/pacman.d/mirrorlist | head -n 1`";do
-    #     echo $mirror > /etc/pacman.d/mirrorlist
-    # break
-    # done
-
-
-
-devdata=(`df -hT|grep ^/dev/sd|awk '{print $1}'`)
-
-#sddata=`echo ${sddata}|sed -n "s/\([ \t\n]*;[ \t\n]*\)\+/\n/gp"|sed -n "v#^\/dev\/sd#d"`
-
-echo ${devdata[*]} ";" ${#devdata[*]} 
-return
-
-echo ${sddata}|sed -n "s/\([ \t\n]*;[ \t\n]*\)\+/\n/gp"|awk '
-
-function chkftype(){
-if($2=="0")return 1;
-if($2=="swap")return 1;
-if($2=="ext4")return 1;
-if($2=="ext3")return 1;
-if($2=="ext2")return 1;
-if($2=="msdos")return 1;
-return 0;
+extend-eval(){
+    if [[ $1 == cfdisk ]];then
+	    arry=(${diskmap[cfdisk]})
+	    for key in ${arry[@]};do
+	        cfdisk /dev/${key}
+	    done
+    elif [[ $1 == mkfs ]];then
+        extend-eval-main "${mkfsary[@]}"
+    elif [[ $1 == mount ]];then
+        extend-eval-main "${mountary[@]}"
+    elif [[ $1 == grub ]];then
+	    arry=(${diskmap[grub]})
+	    for key in ${arry[@]};do
+	        echo ${key}
+            grub-install --recheck /dev/${key}
+	    done
+    elif [[ $1 == fstab ]];then
+        genfstab -U /mnt > /mnt/etc/fstab
+        extend-eval-main "${fstabary[@]}"
+        grub-mkconfig -o /boot/grub/grub.cfg
+    elif [[ $1 == soft ]];then
+        extend-eval-main "${softary[@]}"
+    fi
 }
 
-function doline(){
-if(NF!=3)return 0;
-if(index($1,"/dev/sd")!=1)return 0;
-if($3!="0"&&(index($3,"/")!=1))return 0;
-if(chkftype()<=0)return 0;
-
-dd0[$1]=$2;
-dd1[$1]=$3;
-return index($1,"/dev/sd");
+extend-eval-main(){
+    if(($#<=1));then
+        return
+    fi
+    
+    comd=$1
+    nindex=0;
+    echo $#
+    for x in "$@";do
+        ((nindex++))
+        if(($nindex==1));then
+            continue
+        fi
+        line=(${x[@]})
+        echo ${line[*]}
+        if(($comd==fstab||$comd==soft));then
+            extend-eval-$1 "${line[*]}"
+            continue
+        fi
+        
+        line0=${line[0]}
+        for((y=1;y<${#line[@]};y++));do
+            linen=${line[y]}
+            extend-eval-$1 "${line0}" "${linen}"
+        done
+    done
 }
 
-{doline()}
+extend-eval-mount(){
+    if(($#!=2));then
+        return
+    fi
 
-END{for(tt in dd0){printf "%s\t%s\t%s\n",tt,dd0[tt],dd1[tt]}}
-#{printf "var0=%s==>var1=%s;var2=%s;var3=%s;NF=%s;\n",$0,$1,$2,$3,NF}
+    if((!$2=~^/));then
+        return
+    fi
 
-'
+    if(($2!=/));then
+        mkdir -p /mnt$2
+    fi
 
+    if(($1==0));then
+        return
+    fi
+    mount /dev/$1 /mnt$2
 }
 
-# awk 'ARGIND==1 {FS="[^0-9]+";aaa[$2]=$3} ARGIND==2 {FS="[()]+";print $2,($2 in aaa)?aaa[$2]:0}' aaa.txt bbb.txt
+extend-eval-mkfs(){
+    if(($#!=2));then
+        return
+    fi
+
+    if(($1==swap));then
+        mkswap /dev/$2
+        swapon /dev/$2
+        return
+    fi
+    mkfs -t $1 /dev/$2
+}
+
+extend-eval-fstab(){
+    if(($#!=1));then
+        return
+    fi
+    echo $1>>/mnt/etc/fstab
+}
+
+extend-eval-soft(){
+    if(($#!=1));then
+        return
+    fi
+    $1
+}
 
 
-#awk 'ARGIND==1 {a[$1]=a[$1]"|"$2;} ARGIND==2 {print $1;}' aaa.txt bbb.txt
-# awk 'ARGIND==0 {FS="[ \t]+";a[$1]=a[$1]"|"$2;}END{for(ttt in a){print ttt,"\t",a[ttt]}}' aaa.txt
-awk 'ARGIND==1 {aaa[$1]=aaa[$1]"|"$2;} ARGIND==2 {print $1,"\t",($1 in aaa)?aaa[$1]:"";}' aaa.txt bbb.txt
-awk 'ARGIND==1 {FS="[ \t]+";aaa[$1]=aaa[$1]"|"$2;} ARGIND==2 {print $1;}' aaa.txt bbb.txt
+extend-eval-main "${fstabary[@]}"
 
-awk '{if(ARGIND==1){FS="[ \t]+";aaa[$1]=aaa[$1]"|"$2;} if(ARGIND==2){print $1,"\t",($1 in aaa)?aaa[$1]:"";}}' aaa.txt bbb.txt
-#END{for(ttt in a){print ttt "\t" a[ttt]}}

@@ -110,22 +110,22 @@ write-mirror-file(){
     chmod +r $2
 }
 
-
 update-mirror-file(){
     extend-echo yellow "wget mirrorlist and update!"
+    if [[ $1 == 0 ]];then
+        write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on /etc/pacman.d/mirrorlist
+    elif [[ $1==1 ]];then
+        write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist /etc/pacman.d/archlinuxcn-mirrorlist
+        # sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
 
-    write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on /etc/pacman.d/mirrorlist
-    write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist /etc/pacman.d/archlinuxcn-mirrorlist
-    # sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
-
-    checkok=`grep archlinuxcn /etc/pacman.conf`
-    if [[ ${checkok} =~ "archlinuxcn" ]];then
-        return
+        checkok=`grep archlinuxcn /etc/pacman.conf`
+        if [[ ${checkok} =~ "archlinuxcn" ]];then
+            return
+        fi
+        echo "[archlinuxcn]">>/etc/pacman.conf
+        #echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
+        echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
     fi
-    echo "[archlinuxcn]">>/etc/pacman.conf
-    #echo "SigLevel = Optional TrustAll">>/etc/pacman.conf
-    echo "Include = /etc/pacman.d/archlinuxcn-mirrorlist">>/etc/pacman.conf
-
     #更新软件包列表
     pacman -Syy
 }
@@ -142,18 +142,18 @@ updtest(){
 # declare -A hostmap=([host]=chuanqing [user]=chuanqing [nic]=enp5s0 [addr]=192.168.33.47/24 [gw]=192.168.33.254 [dns]=202.100.192.68)
 
 # family
-# 要格式化的分区
-declare -A mkfsmap=([ext4]="sdb1" [swap]="sdb2")
 # 指定的挂载
-declare -A mountmap=([sdb1]=/ [sdb3]=/home [sda5]=/media/win/E)
+declare -a mountary=(mount "sdb1 /" "sdb3 /home" "0 /media/win/E")
+# 要格式化的分区
+declare -a mkfsary=(mkfs "ext4 sdb1" "swap sdb2")
+# 需要增加的挂载
+declare -a fstabary=(fstab "# /dev/sda5" "UUID=000B89830009F592 /media/win/E ntfs-3g defaults 0 0") #blkid查uuid
+# 自定义的安装命令
+declare -a softary=()
 # 操作所指向的磁盘
 declare -A diskmap=([cfdisk]="sdb" [grub]="sdb")
 # 主机名和用户名 如连网用静态ip，需要增加nic、addr、gw、dns节点
 declare -A hostmap=([host]=chuanqing [user]=chuanqing)
-# 需要增加的挂载
-declare -a fstabary=("# /dev/sda5" "UUID=000B89830009F592 /media/win/E ntfs-3g defaults 0 0") #blkid查uuid
-# 自定义的安装命令
-declare -a softary=()
 
 extend-eval(){
     if [[ $1 == cfdisk ]];then
@@ -162,26 +162,9 @@ extend-eval(){
 	        cfdisk /dev/${key}
 	    done
     elif [[ $1 == mkfs ]];then
-	    for key in ${!mkfsmap[@]};do
-	        fsvalue=(${mkfsmap[${key}]})
-	        for vkey in ${fsvalue};do
-		        if [[ ${key} == swap ]];then
-		            mkswap /dev/${vkey}
-		            swapon /dev/${vkey}
-		        else
-		            mkfs -t ${key} /dev/${vkey}
-		        fi
-	        done
-	    done
+        extend-eval-main "${mkfsary[@]}"
     elif [[ $1 == mount ]];then
-	    for key in ${!mountmap[@]};do
-	        fsvalue=${mountmap[${key}]}
-	        echo /dev/${key} /mnt${fsvalue}
-	        if [[ ${fsvalue} != / ]];then
-		        mkdir -p /mnt${fsvalue}
-	        fi
-	        mount /dev/${key} /mnt${fsvalue} 
-	    done
+        extend-eval-main "${mountary[@]}"
     elif [[ $1 == grub ]];then
 	    arry=(${diskmap[grub]})
 	    for key in ${arry[@]};do
@@ -190,21 +173,85 @@ extend-eval(){
 	    done
     elif [[ $1 == fstab ]];then
         genfstab -U /mnt > /mnt/etc/fstab
-	    for key in ${!fstabary[@]};do
-	        fsvalue=${fstabary[${key}]}
-	        echo ${fsvalue}>>/mnt/etc/fstab
-	    done
+        extend-eval-main "${fstabary[@]}"
         grub-mkconfig -o /boot/grub/grub.cfg
     elif [[ $1 == soft ]];then
-        tmpary=$2
-        if [[ -z $2 ]];then
-            tmpary=${sortary[@]}
-        fi
-	    for key in ${!tmpary[@]};do
-	        fsvalue=${tmpary[${key}]}
-            ${fsvalue}
-	    done
+        extend-eval-main "${softary[@]}"
     fi
+}
+
+extend-eval-main(){
+    if(($#<=1));then
+        return
+    fi
+    
+    comd=$1
+    nindex=0;
+    echo $#
+    for x in "$@";do
+        ((nindex++))
+        if(($nindex==1));then
+            continue
+        fi
+        line=(${x[@]})
+        echo ${line[*]}
+        if(($comd==fstab||$comd==soft));then
+            extend-eval-$1 "${line[*]}"
+            continue
+        fi
+        
+        line0=${line[0]}
+        for((y=1;y<${#line[@]};y++));do
+            linen=${line[y]}
+            extend-eval-$1 "${line0}" "${linen}"
+        done
+    done
+}
+
+extend-eval-mount(){
+    if(($#!=2));then
+        return
+    fi
+
+    if((!$2=~^/));then
+        return
+    fi
+
+    if(($2!=/));then
+        mkdir -p /mnt$2
+    fi
+
+    if(($1==0));then
+        return
+    fi
+    mount /dev/$1 /mnt$2
+}
+
+extend-eval-mkfs(){
+    if(($#!=2));then
+        return
+    fi
+
+    if(($1==swap));then
+        mkswap /dev/$2
+        swapon /dev/$2
+        return
+    fi
+    mkfs -t $1 /dev/$2
+}
+
+extend-eval-fstab(){
+    if(($#!=1));then
+        return
+    fi
+    echo $1>>/mnt/etc/fstab
+}
+
+extend-eval-soft(){
+    if(($#!=1));then
+        return
+    fi
+    $1
 }
 
 static-ip-conf(){
@@ -219,18 +266,39 @@ static-ip-conf(){
     echo "DNS=('${hostmap[dns]}')">>${conffile}
 }
 
-before-chroot(){
-    update-mirror-file
-    
+init-before(){
     extend-echo red "cfdisk!"
     fdisk -l
     #fdisk /dev/sda
 
     extend-echo red "mkfs and mount!"
-    extend-eval cfdisk
-    extend-eval mkfs
-    extend-eval mount
+    cfdisk /dev/sdb
+    mkfs -t ext4 /dev/sdb1
+    mkswap /dev/sdb2
+    swapon /dev/sdb2
 
+    mount /dev/sdb1 /mnt
+    mkdir -p /mnt/home
+    mount /dev/sdb3 /mnt/home
+    mkdir -p /media/win/E
+}
+
+
+
+# init-before(){
+#     extend-echo red "cfdisk!"
+#     fdisk -l
+#     #fdisk /dev/sda
+
+#     extend-echo red "mkfs and mount!"
+#     extend-eval cfdisk
+#     extend-eval mkfs
+#     extend-eval mount
+# }
+
+
+before-chroot(){
+    update-mirror-file 0
     extend-echo yellow "run pacstrap!"
     pkgs=(
         # 系统
@@ -255,18 +323,17 @@ before-chroot(){
 	    networkmanager network-manager-applet
         # 时间同步
 	    openntpd
-        # archlinuxcn支持
-        archlinuxcn-keyring
-)
+    )
     
     pacstrap -i /mnt ${pkgs[*]}
 
-    extend-eval fstab
+    genfstab -U /mnt > /mnt/etc/fstab
+    echo "# /dev/sda5">>/mnt/etc/fstab
+    echo "UUID=000B89830009F592 /media/win/E ntfs-3g defaults 0 0">>/mnt/etc/fstab
 
     extend-echo yellow "cp install.sh!"
     cp arch-install.sh /mnt
     cp arch-install.sh /home
-
     extend-echo red "arch-chroot!"
     arch-chroot /mnt
 }
@@ -298,7 +365,11 @@ add-user(){
 
 
 after-chroot(){
+    update-mirror-file 1
+
     extend-echo yellow "run pacman!"
+    # archlinuxcn支持
+    pacman -S archlinuxcn-keyring
     pkgs=(
         #谷歌 wps 字体支持
         google-chrome wps-office ttf-wps-fonts wqy-zenhei
@@ -349,10 +420,14 @@ domain(){
             extend-eval soft
             ;;
         mirror)
-            update-mirror-file
+            update-mirror-file 0
+            update-mirror-file 1
             ;;
         staticip)
             static-ip-conf
+            ;;
+        init)
+            init-before
             ;;
         before)
             before-chroot
@@ -373,7 +448,7 @@ domain(){
             LANG=zh_CN.UTF-8
             ;;
         *)
-            echo "before after homeconf install mirror staticip en_us zh_cn"
+            echo "init before after homeconf install mirror staticip en_us zh_cn"
             ;;
     esac
 }
