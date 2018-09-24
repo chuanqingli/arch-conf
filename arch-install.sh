@@ -302,8 +302,8 @@ after-chroot(){
     pkgs=(
         #谷歌 wps 字体支持
         google-chrome wps-office ttf-wps-fonts wqy-zenhei
-        # 远程
-        xrdp
+        # # 远程
+        # xrdp
     )
     pacman -S ${pkgs[*]}
     extend-echo red "zone and time update!"
