@@ -156,11 +156,16 @@ declare -A diskmap=([cfdisk]="sda" [grub]="sda")
 declare -A hostmap=([host]=chuanqing [user]=chuanqing)
 
 extend-eval(){
-    if [[ "${1}" == cfdisk ]];then
-	    str=${diskmap[cfdisk]}
+    if [[ $1 == cfdisk ]] || [[ $1 == grub ]] ;then
+	    str=${diskmap[$1]}
         ppp=($str)
+
+        comd0=$1
+        if [[ $1 == grub ]];then
+            comd0="grub-install --recheck"
+        fi
 	    for key in ${ppp[*]};do
-	        cfdisk /dev/"${key}"
+            ${comd0} /dev/"${key}"
 	    done
         return
     fi
@@ -185,8 +190,12 @@ extend-eval(){
     esac
 
     for str in "${aaa[@]}";do
-        if [ "${1}" == fstab ] || [ "${1}" == soft ] ;then
-            single-$1 "${str}"
+        if [[ $1 == fstab ]] || [[ $1 == soft ]] ;then
+            if [[ $1 == soft ]];then
+                $str
+                continue
+            fi
+            echo "$str">>/mnt/etc/fstab
             continue
         fi
 
@@ -231,14 +240,7 @@ single-mkfs(){
     mkfs -t $1 /dev/$2
 }
 
-single-fstab(){
-    if [[ $# != 1 ]];then
-        return
-    fi
-    echo $1>>/mnt/etc/fstab
-}
-
-single-soft(){
+single-comd(){
     if [[ $# != 1 ]];then
         return
     fi
