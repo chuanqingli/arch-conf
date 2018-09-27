@@ -142,97 +142,88 @@ updtest(){
 # declare -A hostmap=([host]=chuanqing [user]=chuanqing [nic]=enp5s0 [addr]=192.168.33.47/24 [gw]=192.168.33.254 [dns]=202.100.192.68)
 
 # family
-# 指定的挂载
-declare -a mountary=(mount "sdb1 /" "sdb3 /home" "0 /media/win/E")
 # 要格式化的分区
-declare -a mkfsary=(mkfs "ext4 sdb1" "swap sdb2")
+declare -a mkfsary=("ext4 sda1 sda3" "swap sda2")
+# 指定的挂载
+declare -a mountary=("sda1 /" "sda3 /home" "0 /media/win/E")
 # 需要增加的挂载
-declare -a fstabary=(fstab "# /dev/sda5" "UUID=000B89830009F592 /media/win/E ntfs-3g defaults 0 0") #blkid查uuid
+declare -a fstabary=("# /dev/sda5" "UUID=000B89830009F592 /media/win/E ntfs-3g defaults 0 0") #blkid查uuid
 # 自定义的安装命令
 declare -a softary=()
 # 操作所指向的磁盘
-declare -A diskmap=([cfdisk]="sdb" [grub]="sdb")
+declare -A diskmap=([cfdisk]="sda" [grub]="sda")
 # 主机名和用户名 如连网用静态ip，需要增加nic、addr、gw、dns节点
 declare -A hostmap=([host]=chuanqing [user]=chuanqing)
 
 extend-eval(){
-    if [[ $1 == cfdisk ]];then
-	    arry=(${diskmap[cfdisk]})
-	    for key in ${arry[@]};do
-	        cfdisk /dev/${key}
+    if [[ "${1}" == cfdisk ]];then
+	    str=${diskmap[cfdisk]}
+        ppp=($str)
+	    for key in ${ppp[*]};do
+	        cfdisk /dev/"${key}"
 	    done
-    elif [[ $1 == mkfs ]];then
-        extend-eval-main "${mkfsary[@]}"
-    elif [[ $1 == mount ]];then
-        extend-eval-main "${mountary[@]}"
-    elif [[ $1 == grub ]];then
-	    arry=(${diskmap[grub]})
-	    for key in ${arry[@]};do
-	        echo ${key}
-            grub-install --recheck /dev/${key}
-	    done
-    elif [[ $1 == fstab ]];then
-        genfstab -U /mnt > /mnt/etc/fstab
-        extend-eval-main "${fstabary[@]}"
-        grub-mkconfig -o /boot/grub/grub.cfg
-    elif [[ $1 == soft ]];then
-        extend-eval-main "${softary[@]}"
-    fi
-}
-
-extend-eval-main(){
-    if(($#<=1));then
         return
     fi
-    
-    comd=$1
-    nindex=0;
-    echo $#
-    for x in "$@";do
-        ((nindex++))
-        if(($nindex==1));then
+
+    aaa=()
+    case "${1}" in
+        mkfs)
+            aaa=("${mkfsary[@]}")
+            ;;
+        mount)
+            aaa=("${mountary[@]}")
+            ;;
+        fstab)
+            aaa=("${fstabary[@]}")
+            ;;
+        soft)
+            aaa=("${softary[@]}")
+            ;;
+        *)
+            return
+            ;;
+    esac
+
+    for str in "${aaa[@]}";do
+        if [ "${1}" == fstab ] || [ "${1}" == soft ] ;then
+            single-$1 "${str}"
             continue
         fi
-        line=(${x[@]})
-        echo ${line[*]}
-        if(($comd==fstab||$comd==soft));then
-            extend-eval-$1 "${line[*]}"
-            continue
-        fi
-        
-        line0=${line[0]}
-        for((y=1;y<${#line[@]};y++));do
-            linen=${line[y]}
-            extend-eval-$1 "${line0}" "${linen}"
+
+        bbb=(${str})
+        bbb0=${bbb[0]}
+        bbbn=${bbb[*]:1:1000}
+        for bbb1 in ${bbbn[*]};do
+            single-$1 "${bbb0}" "${bbb1}"
         done
     done
 }
 
-extend-eval-mount(){
-    if(($#!=2));then
+single-mount(){
+    if [[ $# != 2 ]];then
         return
     fi
 
-    if((!$2=~^/));then
+    if [[ ! $2 =~ ^/ ]];then
         return
     fi
 
-    if(($2!=/));then
+    if [[ $2 != / ]];then
         mkdir -p /mnt$2
     fi
 
-    if(($1==0));then
+    if [[ $1 == 0 ]];then
         return
     fi
     mount /dev/$1 /mnt$2
 }
 
-extend-eval-mkfs(){
-    if(($#!=2));then
+single-mkfs(){
+    if [[ $# != 2 ]];then
         return
     fi
 
-    if(($1==swap));then
+    if [[ $1 == swap ]];then
         mkswap /dev/$2
         swapon /dev/$2
         return
@@ -240,15 +231,15 @@ extend-eval-mkfs(){
     mkfs -t $1 /dev/$2
 }
 
-extend-eval-fstab(){
-    if(($#!=1));then
+single-fstab(){
+    if [[ $# != 1 ]];then
         return
     fi
     echo $1>>/mnt/etc/fstab
 }
 
-extend-eval-soft(){
-    if(($#!=1));then
+single-soft(){
+    if [[ $# != 1 ]];then
         return
     fi
     $1
@@ -268,34 +259,12 @@ static-ip-conf(){
 
 init-before(){
     extend-echo red "cfdisk!"
-    fdisk -l
-    #fdisk /dev/sda
-
-    extend-echo red "mkfs and mount!"
-    cfdisk /dev/sdb
-    mkfs -t ext4 /dev/sdb1
-    mkswap /dev/sdb2
-    swapon /dev/sdb2
-
-    mount /dev/sdb1 /mnt
-    mkdir -p /mnt/home
-    mount /dev/sdb3 /mnt/home
-    mkdir -p /media/win/E
+    extend-eval cfdisk
+    extend-echo red "mkfs!"
+    extend-eval mkfs
+    extend-echo red "mount!"
+    extend-eval mount
 }
-
-
-
-# init-before(){
-#     extend-echo red "cfdisk!"
-#     fdisk -l
-#     #fdisk /dev/sda
-
-#     extend-echo red "mkfs and mount!"
-#     extend-eval cfdisk
-#     extend-eval mkfs
-#     extend-eval mount
-# }
-
 
 before-chroot(){
     update-mirror-file 0
@@ -328,8 +297,7 @@ before-chroot(){
     pacstrap -i /mnt ${pkgs[*]}
 
     genfstab -U /mnt > /mnt/etc/fstab
-    echo "# /dev/sda5">>/mnt/etc/fstab
-    echo "UUID=000B89830009F592 /media/win/E ntfs-3g defaults 0 0">>/mnt/etc/fstab
+    extend-eval fstab
 
     extend-echo yellow "cp install.sh!"
     cp arch-install.sh /mnt
