@@ -365,6 +365,7 @@ after-chroot(){
     write-locale-conf /etc/locale.conf
 
     extend-eval grub
+    grub-mkconfig -o /boot/grub/grub.cfg
 
     #网卡为空
     if [[ -z ${hostmap[nic]} ]];then
