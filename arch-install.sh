@@ -84,6 +84,7 @@ checkurl() {
     echo "$? ${output[0]} ${output[1]}" && return
 }
 
+ARCH="$(uname -m)"
 write-mirror-file(){
     tmpf1=$(mktemp)
     tmpf2=$(mktemp)
@@ -94,8 +95,12 @@ write-mirror-file(){
     cat ${tmpf1}|while read line;do
         showline=${line}
         if [[ ${line} =~ ^[#]*(Server[ \t]*=[ \t]*(http.*))$ ]];then
-            resp=($(checkurl ${BASH_REMATCH[2]}))
-            showstr=${BASH_REMATCH[2]}'==>'${resp[*]}
+            local strippedurl=${BASH_REMATCH[2]}
+            local replacedurl="${strippedurl//'$arch'/$ARCH}"
+            replacedurl="${replacedurl//'$repo'/community}"
+            resp=($(checkurl ${replacedurl}))
+            # showstr=${BASH_REMATCH[2]}" "${replacedurl}"==>"${resp[*]}
+            showstr=${BASH_REMATCH[2]}"==>"${resp[*]}
             extend-echo yellow "$showstr"
             # echo ${showstr}
             if [[ ${resp[0]} == 0 ]];then
@@ -387,8 +392,8 @@ self-install(){
 domain(){
     case $1 in
         test)
-        # updtest
-            extend-eval soft
+        updtest
+            # extend-eval soft
             ;;
         mirror)
             update-mirror-file 0
