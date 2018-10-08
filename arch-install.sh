@@ -84,7 +84,35 @@ checkurl() {
     echo "$? ${output[0]} ${output[1]}" && return
 }
 
-ARCH="$(uname -m)"
+
+# getfetchurl serverurl (e.g. getturl http://foo.com/core/os/i686)
+# if $repo is in the line, then assumes core
+# if $arch is in the line, then assumes $(uname -m)
+# returns a fetchurl (e.g. http://foo.com/core/os/i686/core.db.tar.gz)
+getfetchurl() {
+    ARCH="$(uname -m)"
+	strippedurl="${1%/}"
+	reponame2="${2%/}"
+    reponame=""
+
+	replacedurl="${strippedurl//'$arch'/$ARCH}"
+    if [[ ${strippedurl} =~ '$repo' ]];then
+		replacedurl="${replacedurl//'$repo'/core}"
+        reponame2="core"
+	fi
+
+    if [[ -n $reponame2 ]];then
+        reponame="$reponame2"
+    fi
+
+	if [[ -z $reponame || $reponame = $replacedurl ]]; then
+		echo "fail"
+	else
+		fetchurl="${replacedurl}/$reponame.db"
+		echo "$fetchurl"
+	fi
+}
+
 write-mirror-file(){
     tmpf1=$(mktemp)
     tmpf2=$(mktemp)
@@ -92,21 +120,26 @@ write-mirror-file(){
     wget $1 -O ${tmpf1}
     echo >$2
     echo >${tmpf2}
+
+    reponame=""
+    if [[ $1 =~ archlinuxcn ]];then
+        reponame='archlinuxcn'
+    fi
+    
     cat ${tmpf1}|while read line;do
         showline=${line}
         if [[ ${line} =~ ^[#]*(Server[ \t]*=[ \t]*(http.*))$ ]];then
-            local strippedurl=${BASH_REMATCH[2]}
-            local replacedurl="${strippedurl//'$arch'/$ARCH}"
-            replacedurl="${replacedurl//'$repo'/community}"
+            showline="#"${BASH_REMATCH[1]}
+            strippedurl=${BASH_REMATCH[2]}
+            replacedurl=($(getfetchurl ${strippedurl} ${reponame}))
             resp=($(checkurl ${replacedurl}))
             # showstr=${BASH_REMATCH[2]}" "${replacedurl}"==>"${resp[*]}
-            showstr=${BASH_REMATCH[2]}"==>"${resp[*]}
+            showstr=${strippedurl}"==>"${resp[*]}
             extend-echo yellow "$showstr"
             # echo ${showstr}
             if [[ ${resp[0]} == 0 ]];then
-                echo ${resp[1]} " " ${BASH_REMATCH[2]}>>${tmpf2}
+                echo ${resp[1]} " " ${strippedurl}>>${tmpf2}
             fi
-            showline="#"${BASH_REMATCH[1]}
         fi
         echo ${showline}>>$2
     done
@@ -119,7 +152,7 @@ update-mirror-file(){
     extend-echo yellow "wget mirrorlist and update!"
     if [[ $1 == 0 ]];then
         write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on /etc/pacman.d/mirrorlist
-    elif [[ $1==1 ]];then
+    elif [[ $1 == 1 ]];then
         write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist /etc/pacman.d/archlinuxcn-mirrorlist
         # sed -i 's/^#\(XferCommand = \/usr\/bin\/wget \)/\1/g' /etc/pacman.conf
 
@@ -430,4 +463,8 @@ domain(){
 }
 
 
+    # write-mirror-file https://www.archlinux.org/mirrorlist/\?country=CN\&use_mirror_status=on aaa.txt
+    # write-mirror-file https://raw.githubusercontent.com/archlinuxcn/mirrorlist-repo/master/archlinuxcn-mirrorlist bbb.txt
 domain $1
+# getfetchurl 'https://cdn.repo.archlinuxcn.org/$arch' archlinuxcn
+# getfetchurl 'http://mirrors.xjtu.edu.cn/archlinux/$repo/os/$arch'
